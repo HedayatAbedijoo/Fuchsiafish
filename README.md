@@ -16,15 +16,23 @@ assets/css/base.css           Shared theme, header, footer, accessibility
 assets/css/campaign.css       Campaign composition and responsive layout
 assets/js/main.js             Page initialization and playback control
 assets/js/campaign/scene.js   Isolated Canvas/WebGL animation and lifecycle
+assets/js/campaign/turn-sequence.js  Continuous sampling of the prepared yaw poses
+assets/js/campaign/turn-atlas.js     Shared frame dimensions, scale and pivot
 assets/images/               Original extracted character assets and favicon
 prototype.html               Unmodified reference prototype
 ```
 
-No build, package installation, external font, API, or runtime dependency is needed. Character PNGs are extracted byte-for-byte from the prototype. The original supplied JPG is retained unchanged. Novel links preserve the prototype's destination.
+No build, package installation, external font, API, or runtime dependency is needed. The original side and front character PNGs are extracted byte-for-byte from the prototype. The turn atlas is new artwork generated with the built-in ImageGen tool from those two references; its prompt is saved alongside the PNG. The original supplied JPG is retained unchanged. Novel links preserve the prototype's destination.
 
 The header icon and browser favicons use resized copies of the existing side-view fish artwork, preserving its proportions and transparency. `favicon.ico` includes 16, 32, 48, and 64 pixel versions; `favicon-32.png` supplies a PNG alternative.
 
-The animation completes a loop in 9.6 seconds. Entry takes one second, and the eighteen bites take five seconds; cards and charge restore during the final part of the return so the next attack begins immediately. `No Charge Left` appears when the simulated charge reaches zero. Rendering uses uniform scaling to keep the phone and fish proportions consistent.
+The animation completes a loop in 13.8 seconds. Entry takes 1.2 seconds; eighteen bites take 5.4 seconds, with another 2.4 seconds reserved for five turns between cards. Cards and charge restore during the final part of the return so the next attack begins immediately. `No Charge Left` appears when the simulated charge reaches zero. Rendering uses uniform scaling to keep the phone and fish proportions consistent.
+
+A continuous, periodic swim path carries position, speed, and facing through entry, feeding, escape, and return. Turns now sample `fuchsiafish-turn-smooth.webp`: 129 registered yaw views prepared locally with [RIFE motion-compensated interpolation](https://github.com/nihui/rife-ncnn-vulkan). The source atlas contains inconsistent side profiles, so preparation uses its consistent right-to-front poses and mirrored body views; the asymmetric lure is projected separately before interpolation. The two endpoints come from the actual side rig. Every sample shares one fixed pivot and uniform scale; no runtime bounding-box fitting or side/front/side switching is used. Adjacent prepared samples are interpolated continuously with premultiplied alpha, without rounding the yaw to an integer frame.
+
+The travelling tail wave continues through turns and the transition back to the articulated biting jaw. The five feeding turns no longer have an artificial scale dip. Both return turns keep a constant scale; foreground depth is recovered during the straight section between them. The fish stays behind the phone until its larger foreground silhouette clears it. Turn durations, eighteen bite contacts, and the 13.8-second loop are preserved. Motion is sampled from time, so refresh rate does not change playback speed ([requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)).
+
+To check timing and scale regressions, run `node tests/animation.cjs`. To rebuild the prepared atlas offline, use `python3 tools/bake-turn-sequence.py --rife /path/to/rife-ncnn-vulkan`; this needs Pillow, NumPy, pycairo, Node, and the official RIFE 20221029 executable with its `rife-v4.6` model beside it. Preparation uses two background mattes to recover transparency. These are asset preparation dependencies only; visitors download a 3.6 MB WebP and run the normal Canvas renderer. The source PNGs remain unchanged. The build script makes no network calls.
 
 At widths up to 850px, the headline sits behind the animated scene. The phone is aligned toward the right, while the headline wraps into a readable stack on the left. The fish crosses the words and reveals them when it enters the phone. The shared stage fits small portrait viewports starting at 320 × 568; wider screens retain the side-by-side composition.
 
@@ -32,4 +40,4 @@ The pause control and Space key on the canvas control playback. Reduced-motion p
 
 `window.fuchsiafish` provides `pause()`, `resume()`, `toggle()`, `seek(seconds)`, `state`, `timings`, and `destroy()`. The scene is separate from the page so future routes can mount and unmount it. A future forum can use separate feature scripts/styles and its own server/API; no forum, accounts, storage, or backend is implemented here.
 
-Everything is local. No hosting configuration, cloud upload, publishing, or repository push is part of this version.
+The site and source remain local. No hosting configuration, publishing, or repository push is part of this version. Only the two character reference PNGs were sent to ImageGen, with explicit user permission, to create the new turn artwork.

@@ -11,6 +11,8 @@
     canvas,
     sideSrc: 'assets/images/fuchsiafish-side.png',
     frontSrc: 'assets/images/fuchsiafish-front.png',
+    turnSrc: 'assets/images/fuchsiafish-turn-smooth.webp',
+    turnAtlas: window.FuchsiafishTurnAtlas,
     onReady() {
       arena.classList.add('is-ready');
       control.hidden = false;
