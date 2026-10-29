@@ -23,6 +23,7 @@ for(const compact of [false,true]){
  const controller=sandbox.window.FuchsiafishHeadline.create(title),mapping={left:0,top:0,scale:.5};
  const cards=controller.measure(mapping),glyphs=words.flatMap(word=>word.children);
  assert.equal(cards.length,compact?5:3);assert.equal(drawn.join(''),'THEFUCHSIAFISHARECOMING.');
+ assert.equal(cards.map(card=>card.dir).join(','),compact?'-1,1,-1,1,-1':'-1,1,-1');
  assert.equal(title.attributes['aria-label'],'THE FUCHSIAFISH ARE COMING.');
  assert(glyphs.every(g=>g.attributes['aria-hidden']==='true'));
  const opacity=g=>g.style.opacity===''?1:Number(g.style.opacity);
@@ -37,7 +38,12 @@ for(const compact of [false,true]){
  }
  controller.update({repair:1});assert(glyphs.every(g=>opacity(g)===1&&g.style.clipPath===''&&g.style.transform===''));
  assert(partial,'Include visible intermediate repair states');
- controller.update({row:0,piece:0,q:.4});assert(words[0].children.some(g=>g.style.clipPath.startsWith('polygon(')));
+ for(let row=0;row<cards.length;row++){
+  controller.update({row,piece:0,q:.4});
+  const start=cards[row].dir===1?'polygon(100% 0%':'polygon(0% 0%';
+  assert(cards[row].glyphs.every(g=>g.el.style.clipPath.startsWith(start)),'Match the remaining ink to the bite direction');
+  assert(cards.slice(0,row).every(card=>card.glyphs.every(g=>opacity(g.el)===0)),'Previously eaten rows stay absent');
+ }
  controller.update({row:cards.length-1,piece:2,q:1});assert(glyphs.every(g=>opacity(g)===0),'Eat all of the words');
  controller.update({repair:0});assert(glyphs.every(g=>opacity(g)===0),'Keep the heading absent during re-entry');
  const measuredAgain=controller.measure(mapping);assert.equal(measuredAgain.length,cards.length);

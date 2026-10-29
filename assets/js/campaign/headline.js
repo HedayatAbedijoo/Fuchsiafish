@@ -37,7 +37,7 @@ window.FuchsiafishHeadline = { create(title) {
     const m=c.measureText(g.char),ascent=m.fontBoundingBoxAscent??fontSize*.9,descent=m.fontBoundingBoxDescent??fontSize*.22;
     c.fillText(g.char,g.rect.left-row.left,g.rect.top-row.top+(g.rect.height-ascent-descent)/2+ascent);
    }
-   return {i:20+i,x:(row.left-left)/scale,y:(row.top-top)/scale,w,h,asset,dir:-1,typography:true,glyphs:row.glyphs};
+   return {i:20+i,x:(row.left-left)/scale,y:(row.top-top)/scale,w,h,asset,dir:i%2?1:-1,typography:true,glyphs:row.glyphs};
   });
   return cards;
  }

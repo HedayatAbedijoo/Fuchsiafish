@@ -4,7 +4,7 @@ const assert = require('assert/strict');
 let source = fs.readFileSync(process.cwd() + '/assets/js/campaign/scene.js', 'utf8');
 
 function mount(compact = false, frontMissing = false, record = false, withHeadline = false) {
-  let frames = 0, serial = 0, operations = [], canvasCount = 0;
+  let frames = 0, serial = 0, operations = [], canvasCount = 0, resizeCallback;
   const contexts = [], images = [];
   const append = (...args) => { if (record) operations.push(args); };
   const encode = x => x && typeof x === 'object' && x.id ? { ref: x.id } : x;
@@ -49,12 +49,12 @@ function mount(compact = false, frontMissing = false, record = false, withHeadli
     window: {}, Image, devicePixelRatio: 1,
     matchMedia: query => ({matches: query.includes('850') && compact, addEventListener() {}, removeEventListener() {}}),
     document: { hidden: false, createElement: canvas, addEventListener() {}, removeEventListener() {} },
-    ResizeObserver: class {observe(){} disconnect(){}}, IntersectionObserver: class {observe(){} disconnect(){}},
+    ResizeObserver: class {constructor(callback){resizeCallback=callback} observe(){} disconnect(){}}, IntersectionObserver: class {observe(){} disconnect(){}},
     requestAnimationFrame() { return ++frames; }, cancelAnimationFrame() {}
   };
   let headlineState=null,headlineDestroyed=false;
   if(withHeadline)sandbox.window.FuchsiafishHeadline={create(){return {
-    measure(){return Array.from({length:compact?5:3},(_,i)=>({i:20+i,x:compact?35:-660,y:150+i*(compact?85:92),w:i===0?150:compact?300:610,h:i===0&&compact?28:78,asset:canvas(),dir:-1,typography:true}))},
+    measure(){return Array.from({length:compact?5:3},(_,i)=>({i:20+i,x:compact?35:-660,y:150+i*(compact?85:92),w:i===0?(compact?60:150):compact?300:610,h:i===0&&compact?28:78,asset:canvas(),dir:i%2?1:-1,typography:true}))},
     update(state){headlineState=state},destroy(){headlineDestroyed=true}
   }}};
   vm.runInNewContext(fs.readFileSync('assets/js/campaign/turn-sequence.js','utf8'),sandbox);
@@ -65,7 +65,7 @@ function mount(compact = false, frontMissing = false, record = false, withHeadli
   const scene = sandbox.window.FuchsiafishScene.mount({canvas: surface,
     heading:withHeadline?{closest(){return {getBoundingClientRect(){return {left:compact?0:-720}}}}}:null,
     sideSrc: process.cwd() + '/assets/images/fuchsiafish-side.png', frontSrc: process.cwd() + '/assets/images/fuchsiafish-front.png',turnSrc:process.cwd()+'/assets/images/fuchsiafish-turn-smooth.webp',turnAtlas:sandbox.window.FuchsiafishTurnAtlas});
-  return {scene, contexts, operations, surface, sandbox, get headlineState(){return headlineState},get headlineDestroyed(){return headlineDestroyed}};
+  return {scene, contexts, operations, surface, sandbox, resize(value){compact=value;resizeCallback()},get headlineState(){return headlineState},get headlineDestroyed(){return headlineDestroyed}};
 }
 
 
@@ -172,8 +172,8 @@ for(const dir of [-1,1])for(let piece=0;piece<3;piece++){
 }
 console.log('PASS tooth pin, attached corners, matching tear edges and complete swallowing in both directions');
 
-// The added hunt must happen after the complete shortened phone visit. Compare
-// both renderers, then follow two more loops and the delayed rebuilding of ink.
+// Preserve the phone visit and rear escape, then take a continuous shortcut
+// to the words. Follow alternating rows, re-entry and delayed rebuilding of ink.
 function sameFrame(actual,expected,message){
  if(typeof actual==='number'&&typeof expected==='number')assert(Math.abs(actual-expected)<1e-8,message);
  else if(actual&&typeof actual==='object'){
@@ -183,25 +183,68 @@ function sameFrame(actual,expected,message){
 }
 for(const compact of [false,true]){
  const baseline=mount(compact),extended=mount(compact,false,false,true),scene=extended.scene,t=scene.timings;
- assert(t.CYCLE>t.HEADLINE_END&&t.HEADLINE>t.RETURN);
- for(let time=0;time<t.RETURN-1e-6;time+=1/24){
+ const rows=compact?5:3;
+ assert(t.CYCLE>t.HEADLINE_END&&t.HEADLINE===t.RETURN);
+ assert(Math.abs((t.HEADLINE_END-t.HEADLINE)-(compact?4.975:2.825))<1e-9);
+ assert.equal(t.HEADLINE_TURN,t.TURN,'Match the phone turn rhythm');
+ const rearTurn=t.EXIT+(t.RETURN-t.EXIT)*.46,depart=t.EXIT+(t.RETURN-t.EXIT)*.62;
+ for(let time=0;time<rearTurn;time+=1/24){
   const before=baseline.scene.seek(time),after=scene.seek(time);
   for(const field of ['position','facing','scale','bank','battery','bites','jaw','paper','layer'])sameFrame(after[field],before[field],`First phone visit changed at ${time}: ${field}`);
   assert.equal(extended.headlineState.repair,1,'Do not eat the headline during the first phone visit');
  }
- const rows=compact?5:3,cardTime=(t.HEADLINE_END-t.HEADLINE)/rows,biteTime=(cardTime-t.HEADLINE_TURN)/3;
+ // Battery restoration keeps its existing timing while the swim takes the shortcut.
+ for(let time=t.EXIT;time<t.RETURN;time+=1/12){
+  assert.equal(scene.seek(time).battery,baseline.scene.seek(time).battery);
+ }
+ let previous=scene.seek(depart);
+ for(let time=depart+1/60;time<t.HEADLINE;time+=1/60){
+  const current=scene.seek(time);
+  assert(current.position.x<previous.position.x-1e-4,'Swim directly left to the title without stopping or turning back');
+  assert(Math.abs(current.facing+1)<1e-10,'Do not face the phone again before eating the title');
+  assert(Math.abs(current.scale-.29)<1e-12,'Keep foreground scale through the shortcut');
+  previous=current;
+ }
+ const reveal=t.EXIT+(t.RETURN-t.EXIT)*.68;
+ assert.equal(scene.seek(reveal-1e-6).layer,'behind');assert.equal(scene.seek(reveal+1e-6).layer,'front');
+ const biteTime=(t.HEADLINE_END-t.HEADLINE-(rows-1)*t.HEADLINE_TURN)/(rows*3),cardTime=3*biteTime+t.HEADLINE_TURN;
+ assert(Math.abs(biteTime-t.BITE)<1e-12,'Match the phone bite rhythm in both layouts');
  for(let row=0;row<rows;row++)for(let piece=0;piece<3;piece++){
   const at=t.HEADLINE+row*cardTime+piece*biteTime;
+  for(const offset of [.04,.08,.1,.15,.18,.22]){
+   const phone=baseline.scene.seek(t.FEED+piece*t.BITE+offset),title=scene.seek(at+offset);
+   assert(Math.abs(title.jaw-phone.jaw)<1e-10,'Phone and title bites must chew at the same speed');
+   for(const field of ['phase','attached','visible'])assert.equal(title.paper?.[field],phone.paper?.[field],`Match ${field} throughout each bite`);
+  }
   const held=scene.seek(at+(t.CONTACT+.08)*biteTime);
   assert.equal(held.phase,'EATING_HEADLINE');assert.equal(held.headline.row,row);assert.equal(held.headline.piece,piece);
   assert.equal(held.jaw,1);assert.equal(held.paper.attached,true);assert.equal(held.paper.phase,'pull');
-  assert(Math.abs(held.facing+1)<1e-10,'Keep facing the letters while gripping them');
+  assert(Math.abs(held.facing-(row%2?1:-1))<1e-10,'Alternate rows and keep facing the letters while gripping them');
   assert.equal(held.layer,'front');assert.equal(held.battery,100);
   assert.equal(scene.seek(at+(t.TEAR+.04)*biteTime).paper.phase,'swallow');
   assert.equal(scene.seek(at+(t.SWALLOW+1e-6)*biteTime).paper.visible,false);
  }
+ for(let row=0;row<rows-1;row++){
+  const turn=t.HEADLINE+row*cardTime+3*biteTime;
+  const before=scene.seek(turn),after=scene.seek(turn+t.HEADLINE_TURN+t.CONTACT*biteTime);
+  assert.equal(scene.seek(turn+t.HEADLINE_TURN*.5).turning,true);
+  assert(Math.abs(scene.seek(turn+t.HEADLINE_TURN*.5).facing)<1e-10,'Rotate once between adjacent rows');
+  for(let time=turn;time<turn+t.HEADLINE_TURN;time+=1/60){
+   const frame=scene.seek(time);
+   assert(!frame.paper?.visible,'Finish swallowing before rotating');
+   assert(frame.position.x>=Math.min(before.position.x,after.position.x)-35&&frame.position.x<=Math.max(before.position.x,after.position.x)+35,'Keep the turn at the adjacent row edge');
+  }
+ }
+ const finalSwallow=t.HEADLINE+(rows-1)*cardTime+(2+t.SWALLOW)*biteTime;
+ assert(t.HEADLINE_END-finalSwallow<.03,'No spare turn or pause after the final title bite');
  for(let time=t.RETURN;time<t.CYCLE;time+=1/60)assert(Math.abs(scene.seek(time).scale-.29)<1e-12,'No zoom during the headline hunt');
  assert.equal(scene.seek(t.HEADLINE_END+.1).headline.repair,0);
+ const epsilon=1e-4,entry=scene.seek(0),end=scene.seek(t.CYCLE-epsilon),afterEntry=scene.seek(epsilon),beforeEnd=scene.seek(t.CYCLE-2*epsilon);
+ for(const axis of ['x','y']){
+  assert(Math.abs(entry.position[axis]-end.position[axis])<.1,'No position jump on re-entry');
+  const incoming=(end.position[axis]-beforeEnd.position[axis])/epsilon,outgoing=(afterEntry.position[axis]-entry.position[axis])/epsilon;
+  assert(Math.abs(incoming-outgoing)<1,'Match swim speed through re-entry');
+ }
  for(const cycle of [1,2]){
   const start=cycle*t.CYCLE;
   const entry=scene.seek(start);assert.equal(entry.phase,'BREACHING');assert.equal(entry.headline.repair,0);
@@ -214,5 +257,21 @@ for(const compact of [false,true]){
  }
  assert(extended.contexts.every(c=>c.depth===0),'Canvas save/restore balance through the added hunt');
  baseline.scene.destroy();scene.destroy();assert.equal(extended.headlineDestroyed,true);
- console.log(`PASS ${compact?'compact':'desktop'}: unchanged first visit, ${rows*3} headline bites, slow repair and repeated hunts`);
+ console.log(`PASS ${compact?'compact':'desktop'}: unchanged phone feeding and rear escape, matching phone/title bite and turn rhythm, direct approach, ${rows*3} alternating bites, seamless re-entry and repeated hunts`);
 }
+
+const responsive=mount(false,false,false,true);
+responsive.scene.seek(responsive.scene.timings.HEADLINE+1.2);
+for(const compact of [true,false,true]){
+ responsive.resize(compact);
+ const scene=responsive.scene,t=scene.timings,rows=compact?5:3;
+ assert.equal(scene.state.headline.rows,rows);
+ assert(Math.abs(t.CYCLE-(compact?16.275:14.125))<1e-9,'Refresh public timings after the headline reflows');
+ assert.equal(t.BITE,.225);assert.equal(t.TURN,.4);
+ const lastBite=t.HEADLINE+(rows-1)*t.CARD+2*t.BITE;
+ assert.equal(scene.seek(lastBite+(t.CONTACT+.08)*t.BITE).paper.phase,'pull');
+ assert.equal(scene.seek(t.HEADLINE_END+1e-6).phase,'RETURNING');
+ assert.equal(scene.seek(t.CYCLE).phase,'BREACHING');
+}
+responsive.scene.destroy();
+console.log('PASS responsive reflow keeps the shared bite rhythm and updates loop/last-bite timing');
