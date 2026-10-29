@@ -1,12 +1,13 @@
 /* Original character artwork, with a continuous swim path and flexible sprite rig. */
 'use strict';
-window.FuchsiafishScene = { mount({ canvas, stage = canvas, heading = null, sideSrc, frontSrc, turnSrc = null, turnFrames = null, turnAtlas = null, photoSrcs = [], onReady = () => {}, onError = () => {}, onPlaybackChange = () => {} }) {
+window.FuchsiafishScene = { mount({ canvas, stage = canvas, heading = null, sideSrc, frontSrc, turnSrc = null, turnFrames = null, turnAtlas = null, photoSrcs = [], profilePhotoSrcs = [], onReady = () => {}, onError = () => {}, onPlaybackChange = () => {} }) {
 const mainCtx=canvas.getContext('2d',{alpha:true});
 if (!mainCtx) { onError(); return null; }
 let ctx=mainCtx;
 const image=new Image(),frontImage=new Image(),turnImage=new Image();let frontReady=false,turnSequence=null,turnSettled=!turnSrc;
 const photoImages=photoSrcs.slice(0,2).map(()=>new Image()),photoReady=photoImages.map(()=>false);
-let photosPending=photoImages.length;
+const profilePhotoImages=profilePhotoSrcs.slice(0,6).map(()=>new Image()),profilePhotoReady=profilePhotoImages.map(()=>false);
+let photosPending=photoImages.length+profilePhotoImages.length;
 // Give each change of direction its own time, separate from the paper bites.
 const paperBites=window.FuchsiafishPaperBite;
 const headline=heading&&window.FuchsiafishHeadline?.create(heading);
@@ -121,18 +122,13 @@ function profileAvatar(c,x,y,r){
  c.restore();
 }
 function profilePost(c,x,y,w,h,i){
- // Tiny surreal illustrations, drawn locally rather than copied from an account.
- const palettes=[['#ead5f2','#9e7bc4','#d587b2'],['#ffddcb','#c17da8','#8c70b3'],['#d5d8f4','#8b8fcb','#c388bc']];
- const [sky,back,front]=palettes[i%3];
- c.save();rounded(c,x,y,w,h,1.5);c.clip();c.fillStyle=sky;c.fillRect(x,y,w,h);
- c.beginPath();c.arc(x+w*(i%2?.7:.3),y+h*.28,h*.18,0,TAU);fill(c,i%2?'#fff2d5':'#fff5fc');
- if(i===2||i===4){
-  rounded(c,x+w*.3,y+h*.2,w*.4,h,w*.2);fill(c,back);
-  rounded(c,x+w*.39,y+h*.35,w*.22,h,w*.11);fill(c,sky);
- }else{
-  c.beginPath();c.moveTo(x,y+h);c.lineTo(x,y+h*.8);c.quadraticCurveTo(x+w*.4,y-h*.1,x+w,y+h*.8);c.lineTo(x+w,y+h);fill(c,back);
+ // Personal-memory photos are baked into the card and its torn fragments.
+ c.save();rounded(c,x,y,w,h,1.5);c.clip();c.fillStyle='#eee9e3';c.fillRect(x,y,w,h);
+ const photo=profilePhotoImages[i];
+ if(profilePhotoReady[i]&&photo.naturalWidth&&photo.naturalHeight){
+  const sw=Math.min(photo.naturalWidth,photo.naturalHeight*w/h),sh=sw*h/w;
+  c.drawImage(photo,(photo.naturalWidth-sw)/2,(photo.naturalHeight-sh)/2,sw,sh,x,y,w,h);
  }
- c.beginPath();c.moveTo(x,y+h);c.quadraticCurveTo(x+w*.5,y+h*.35,x+w,y+h*.9);c.lineTo(x+w,y+h);fill(c,front);
  c.restore();
 }
 function instagramProfile(c,h){
@@ -148,7 +144,7 @@ function instagramProfile(c,h){
  appText(c,'Little moments, big dreams.',8,124,5.7,'#353535');appText(c,'Fictional creator · AI',8,133,5.2,'#737373');
  rounded(c,8,141,49,15,4);fill(c,'#0095f6');appText(c,'Follow',32.5,151,6.3,'#fff',700,'center');
  rounded(c,61,141,49,15,4);fill(c,'#efefef');appText(c,'Message',85.5,151,6.3,'#262626',600,'center');
- for(const [x,label,i] of [[21,'Days',0],[59,'Dreams',1],[97,'Places',2]]){
+ for(const [x,label,i] of [[21,'Travel',0],[59,'Friends',1],[97,'Food',2]]){
   c.beginPath();c.arc(x,174,10,0,TAU);c.strokeStyle='#d9d9d9';c.lineWidth=.7;c.stroke();
   c.save();c.beginPath();c.arc(x,174,8.5,0,TAU);c.clip();profilePost(c,x-9,165,18,18,i);c.restore();appText(c,label,x,191,5.4,'#474747',400,'center');
  }
@@ -655,6 +651,11 @@ photoImages.forEach((photo,i)=>{
  const settle=ok=>{if(destroyed)return;photoReady[i]=ok;photosPending--;boot()};
  photo.onload=()=>settle(true);photo.onerror=()=>settle(false);
  photo.src=photoSrcs[i];
+});
+profilePhotoImages.forEach((photo,i)=>{
+ const settle=ok=>{if(destroyed)return;profilePhotoReady[i]=ok;photosPending--;boot()};
+ photo.onload=()=>settle(true);photo.onerror=()=>settle(false);
+ photo.src=profilePhotoSrcs[i];
 });
 image.src=sideSrc;frontImage.src=frontSrc;if(turnSrc)turnImage.src=turnSrc;
 return {

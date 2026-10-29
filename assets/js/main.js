@@ -19,6 +19,14 @@
       'assets/images/phone-photos/birthday.webp',
       'assets/images/phone-photos/hafezieh-selfie.webp'
     ],
+    profilePhotoSrcs: [
+      'assets/images/instagram/paris.webp',
+      'assets/images/instagram/friends.webp',
+      'assets/images/instagram/food.webp',
+      'assets/images/instagram/travel.webp',
+      'assets/images/instagram/cafe.webp',
+      'assets/images/instagram/seaside.webp'
+    ],
     onReady() {
       arena.classList.add('is-ready');
       control.hidden = false;
