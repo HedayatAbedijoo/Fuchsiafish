@@ -22,7 +22,7 @@ prototype.html               Unmodified reference prototype
 
 No build, package installation, external font, API, or runtime dependency is needed. Character PNGs are extracted byte-for-byte from the prototype. The original supplied JPG is retained unchanged. Novel links preserve the prototype's destination.
 
-The header icon and browser favicons use resized copies of the existing frontal fish artwork. `favicon.ico` includes 16, 32, 48, and 64 pixel versions; `favicon-32.png` supplies a PNG alternative.
+The header icon and browser favicons use resized copies of the existing side-view fish artwork, preserving its proportions and transparency. `favicon.ico` includes 16, 32, 48, and 64 pixel versions; `favicon-32.png` supplies a PNG alternative.
 
 The animation completes a loop in 9.6 seconds. Entry takes one second, and the eighteen bites take five seconds; cards and charge restore during the final part of the return so the next attack begins immediately. `No Charge Left` appears when the simulated charge reaches zero. Rendering uses uniform scaling to keep the phone and fish proportions consistent.
 
