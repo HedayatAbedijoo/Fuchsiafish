@@ -75,7 +75,7 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
   const {scene,contexts,sandbox}=mount(compact,frontMissing),t=scene.timings;
   assert.equal(scene.state.turnFrameCount,129);
   assert.equal(t.ITEMS,4);assert.equal(t.BITES,12);
-  assert.equal(scene.state.bites.length,4,'Only the two photos and two chats remain');
+  assert.equal(scene.state.bites.length,4,'Two photos, a WhatsApp chat and an Instagram profile remain');
   assert(Math.abs((t.END-t.FEED)-7.8/2)<1e-9,'Halve the former feeding time');
   assert(Math.abs(t.CYCLE-9.9)<1e-9);
   for(let n=0;n<12;n++){
@@ -111,10 +111,10 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
     const swallowed=scene.seek(t.FEED+group*t.CARD+(2+t.SWALLOW)*t.BITE+1e-6);
     assert.equal(swallowed.battery,75-group*25,'Each complete card consumes a quarter of the charge');
     assert.equal(swallowed.bites.reduce((a,b)=>a+b),(group+1)*3);
-    assert.equal(swallowed.bites.join(','),['0,0,0,3','0,0,3,3','0,3,3,3','3,3,3,3'][group],'Eat both bottom chats before the top photos');
+    assert.equal(swallowed.bites.join(','),['0,0,0,3','0,0,3,3','0,3,3,3','3,3,3,3'][group],'Eat the bottom social cards before the top photos');
   }
   const lower=scene.seek(t.FEED+(t.CONTACT+.08)*t.BITE),upper=scene.seek(t.FEED+2*t.CARD+(t.CONTACT+.08)*t.BITE);
-  assert(upper.position.y<lower.position.y-100,'Climb from the bottom chats to the photos');
+  assert(upper.position.y<lower.position.y-100,'Climb from the social cards to the photos');
   assert(scene.seek(t.FEED*.55).position.y>upper.position.y+100,'Enter at the lower row before feeding');
   const lastSwallow=t.FEED+3*t.CARD+(2+t.SWALLOW)*t.BITE;
   assert.equal(scene.seek(lastSwallow-1e-6).battery,1,'Keep the last swallow visible');
@@ -146,8 +146,22 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
 for(const compact of [false,true]){
   const {scene,operations}=mount(compact,false,true);
   const labels=operations.filter(op=>op[0]==='call'&&op[2]==='fillText').map(op=>op[3]);
-  for(const label of ['PHOTO_028','PHOTO_104','PRIVATE CHAT','VOICE / CHAT','04 PRIVATE ITEMS'])assert(labels.includes(label),label);
-  for(const label of ['PERSONAL FILE','MEMORIES','06 PRIVATE ITEMS'])assert(!labels.includes(label),`Removed card or stale count: ${label}`);
+  for(const label of ['PHOTO_028','PHOTO_104','WhatsApp','Instagram','luma.daydream','Fictional creator · AI','04 PRIVATE ITEMS'])assert(labels.includes(label),label);
+  for(const label of ['INSTAGRAM CHAT','PRIVATE CHAT','VOICE / CHAT','PERSONAL FILE','MEMORIES','06 PRIVATE ITEMS'])assert(!labels.includes(label),`Removed card or stale count: ${label}`);
+  const translations=new Map(),textureHeights=new Map(),cards=[];
+  for(const op of operations){
+    if(op[0]==='size'&&op[2]==='height')textureHeights.set(op[1],op[3]);
+    if(op[0]==='call'&&op[2]==='translate')translations.set(op[1],{x:op[3],y:op[4]});
+    if(op[0]==='call'&&op[2]==='drawImage'&&op.length===8&&op[6]===118)cards.push({...translations.get(op[1]),w:op[6],h:op[7],texture:op[3].ref});
+  }
+  assert.deepEqual(cards.slice(0,4).map(card=>card.h),[104,104,280,280],'Keep the photo row and extend both lower cards');
+  const powerLabel=operations.find(op=>op[0]==='call'&&op[2]==='fillText'&&op[3]==='POWER REMAINING');
+  for(const card of cards.slice(2,4)){
+    assert(card.h>card.w*2,'Social cards are tall portrait panels');
+    const footerGap=powerLabel[5]-card.y-card.h;
+    assert(footerGap>=10&&footerGap<=20,'Fill the lower display while keeping the battery footer readable');
+    assert.equal(textureHeights.get(card.texture),card.h*2,'Draw the extended artwork without stretching it');
+  }
   const t=scene.timings;
   function shutdownAlpha(seconds){
     // Seek also redraws the previous frame; record only the settled frame.
@@ -173,7 +187,7 @@ for(const compact of [false,true]){
     const alphas=new Map(),cards=[];
     for(const op of operations){
       if(op[0]==='set'&&op[2]==='globalAlpha')alphas.set(op[1],op[3]);
-      if(op[0]==='call'&&op[2]==='drawImage'&&op.length===8&&op[6]===118&&op[7]===104)cards.push(alphas.get(op[1]));
+      if(op[0]==='call'&&op[2]==='drawImage'&&op.length===8&&op[6]===118&&[104,280].includes(op[7]))cards.push(alphas.get(op[1]));
     }
     return cards;
   }
@@ -196,16 +210,16 @@ console.log('PASS phone cards reappear halfway through the title hunt with a smo
 const paperSandbox={window:{}};
 vm.runInNewContext(fs.readFileSync('assets/js/campaign/paper-bite.js','utf8'),paperSandbox);
 const paper=paperSandbox.window.FuchsiafishPaperBite;
-for(const dir of [-1,1])for(let piece=0;piece<3;piece++){
- const card={i:piece,x:100,y:200,w:118,h:104,dir};
+for(const h of [104,280])for(const dir of [-1,1])for(let piece=0;piece<3;piece++){
+ const card={i:piece,x:100,y:200,w:118,h,dir};
  const centerX=card.x+(paper.edge(card,piece,.5)+paper.edge(card,piece+1,.5))/2;
- const grip={x:centerX-dir*13,y:249};
+ const grip={x:centerX-dir*13,y:card.y+h/2-3};
  const make=q=>paper.sample({card,piece,q,grip});
  for(const q of [.18,.36,.4,.52,.639999,.64,.8,.959999,.96]){
   const f=make(q);
   for(const row of f.vertices)for(const v of row){
    assert([v.x,v.y,v.sx,v.sy].every(Number.isFinite));
-   assert(v.sx>=0&&v.sx<=236&&v.sy>=0&&v.sy<=208);
+   assert(v.sx>=0&&v.sx<=card.w*2&&v.sy>=0&&v.sy<=card.h*2);
   }
  }
  for(const q of [paper.CONTACT,.42,.56]){

@@ -30,6 +30,10 @@ function fill(c,color){c.fillStyle=color;c.fill()}
 function text(c,s,x,y,size=12,color='#f8edff',weight=500,align='left'){c.font=`${weight} ${size}px ui-monospace,SFMono-Regular,Consolas,monospace`;c.fillStyle=color;c.textAlign=align;c.fillText(s,x,y)}
 function path(c,points){c.beginPath();points.forEach((p,i)=>i?c.lineTo(...p):c.moveTo(...p));c.closePath()}
 function off(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
+const cardHeight=i=>i<2?104:280;
+function appText(c,s,x,y,size=7,color='#262626',weight=400,align='left'){
+ c.font=`${weight} ${size}px Arial,Helvetica,sans-serif`;c.fillStyle=color;c.textAlign=align;c.fillText(s,x,y);
+}
 function jawMask(c){
  c.beginPath();c.moveTo(793,701);c.quadraticCurveTo(800,685,805,656);
  c.quadraticCurveTo(792,582,859,468);c.quadraticCurveTo(859,548,880,611);
@@ -47,10 +51,124 @@ function rig(){
  rigFrame=off(1536,1024);rigCtx=rigFrame.getContext('2d');
  ready=true;
 }
+function instagramHeader(c){
+ c.save();
+ const g=c.createLinearGradient(8,27,27,8);g.addColorStop(0,'#ffbf55');g.addColorStop(.4,'#f33f77');g.addColorStop(1,'#8744d7');
+ rounded(c,8,8,19,19,5);fill(c,g);
+ c.strokeStyle='#fff';c.lineWidth=1.3;rounded(c,11.5,11.5,12,12,3.5);c.stroke();
+ c.beginPath();c.arc(17.5,17.5,3.1,0,TAU);c.stroke();c.beginPath();c.arc(21.2,13.9,.9,0,TAU);fill(c,'#fff');
+ appText(c,'Instagram',32,22,12,'#171717',700);
+ c.strokeStyle='#e8e8e8';c.lineWidth=.5;c.beginPath();c.moveTo(0,34);c.lineTo(118,34);c.stroke();
+ c.restore();
+}
+function handset(c,x,y,size,color){
+ c.save();c.translate(x,y);c.scale(size/16,size/16);
+ c.beginPath();c.moveTo(3.2,1.3);c.quadraticCurveTo(1.9,.6,1.2,2.4);
+ c.bezierCurveTo(-.7,7,8.9,16.7,13.1,14.3);c.quadraticCurveTo(15.2,13.2,14.1,11.7);
+ c.lineTo(11,9.8);c.quadraticCurveTo(10.2,9.3,9.5,10.3);c.lineTo(8.8,11.1);
+ c.quadraticCurveTo(5.2,9.6,4,6.2);c.lineTo(5,5.5);c.quadraticCurveTo(5.8,4.9,5.3,4);c.closePath();fill(c,color);c.restore();
+}
+function whatsappCard(c,h){
+ c.fillStyle='#075e54';c.fillRect(0,0,118,34);
+ c.beginPath();c.arc(17,17,10,0,TAU);fill(c,'#25d366');
+ c.strokeStyle='#fff';c.lineWidth=1.1;c.beginPath();c.arc(17,16.5,8.1,Math.PI*.8,Math.PI*2.7);c.lineTo(8.5,26);c.lineTo(10.1,21.8);c.stroke();
+ handset(c,12,11,10,'#fff');appText(c,'WhatsApp',32,22,12,'#fff',700);
+ c.fillStyle='#f7faf8';c.fillRect(0,34,118,33);profileAvatar(c,19,50,10);
+ appText(c,'Luma',34,47,8,'#173b32',700);appText(c,'online',34,57,5.5,'#627d72');handset(c,98,43,10,'#128c7e');
+ // Familiar warm wallpaper, green outgoing bubbles and blue read receipts.
+ c.save();c.beginPath();c.rect(0,67,118,h-67);c.clip();
+ c.strokeStyle='#ddd5c8';c.lineWidth=.55;
+ for(let k=0;k<28;k++){
+  const x=6+(k*37)%108,y=73+Math.floor(k/4)*27;
+  rounded(c,x,y,8,5,2);c.stroke();c.beginPath();c.moveTo(x+1,y+5);c.lineTo(x,y+7);c.lineTo(x+4,y+5);c.stroke();
+ }
+ c.restore();
+ rounded(c,42,73,34,11,4);fill(c,'#e8f1eb');appText(c,'TODAY',59,80.5,4.7,'#597168',500,'center');
+ const bubbles=[
+  {x:6,y:91,w:91,h:31,lines:['Hey! Are we still on','for tomorrow?'],time:'10:42'},
+  {x:22,y:129,w:90,h:25,lines:['Of course :)'],time:'10:43',out:true},
+  {x:6,y:161,w:97,h:32,lines:['I found a little cafe.','Sending you the spot.'],time:'10:43'},
+  {x:22,y:200,w:90,h:25,lines:["Can\'t wait! <3"],time:'10:44',out:true}
+ ];
+ for(const b of bubbles){
+  rounded(c,b.x,b.y,b.w,b.h,4);fill(c,b.out?'#d9fdd3':'#fff');
+  path(c,b.out?[[b.x+b.w-3,b.y],[b.x+b.w+3,b.y],[b.x+b.w-1,b.y+5]]:[[b.x+3,b.y],[b.x-3,b.y],[b.x+1,b.y+5]]);fill(c,b.out?'#d9fdd3':'#fff');
+  b.lines.forEach((line,k)=>appText(c,line,b.x+5,b.y+10+k*8,5.9,'#25382f'));
+  appText(c,b.time,b.x+b.w-(b.out?16:4),b.y+b.h-4,4.4,'#7e8e84',400,'right');
+  if(b.out){
+   c.strokeStyle='#38a9d4';c.lineWidth=.7;
+   for(const offset of [0,3]){c.beginPath();c.moveTo(b.x+b.w-12+offset,b.y+b.h-6);c.lineTo(b.x+b.w-10+offset,b.y+b.h-4);c.lineTo(b.x+b.w-6+offset,b.y+b.h-8);c.stroke()}
+  }
+ }
+ rounded(c,6,232,96,18,4);fill(c,'#fff');path(c,[[13,237],[13,245],[19,241]]);fill(c,'#7a9186');
+ c.strokeStyle='#96aaa0';c.lineWidth=1;
+ for(let k=0;k<24;k++){const v=1+rand(k)*7;c.beginPath();c.moveTo(25+k*2.1,241-v/2);c.lineTo(25+k*2.1,241+v/2);c.stroke()}
+ appText(c,'0:12',95,244,5,'#7e8e84',400,'right');
+ rounded(c,4,h-24,93,19,10);fill(c,'#fff');appText(c,'+',13,h-11,11,'#84948c',400,'center');appText(c,'Message',24,h-11,6.3,'#8c9891');
+ c.beginPath();c.arc(106,h-14.5,9,0,TAU);fill(c,'#128c7e');
+ c.strokeStyle='#fff';c.lineWidth=1;rounded(c,104,h-20,4,7,2);c.stroke();c.beginPath();c.moveTo(102,h-15);c.quadraticCurveTo(102,h-9,106,h-9);c.quadraticCurveTo(110,h-9,110,h-15);c.moveTo(106,h-9);c.lineTo(106,h-6);c.stroke();
+}
+function profileAvatar(c,x,y,r){
+ // An invented illustrated character, shared by the chat and profile cards.
+ c.save();c.translate(x,y);c.scale(r,r);c.beginPath();c.arc(0,0,1,0,TAU);c.clip();
+ c.fillStyle='#d8b5ed';c.fillRect(-1,-1,2,2);
+ c.beginPath();c.ellipse(0,.98,.85,.65,0,0,TAU);fill(c,'#8b56b6');
+ c.beginPath();c.ellipse(0,-.05,.62,.83,0,0,TAU);fill(c,'#48335e');
+ c.beginPath();c.ellipse(0,-.01,.4,.57,0,0,TAU);fill(c,'#f3c5b4');
+ c.beginPath();c.ellipse(-.21,-.51,.43,.24,-.55,0,TAU);fill(c,'#48335e');
+ c.fillStyle='#48335e';c.fillRect(-.22,-.04,.08,.09);c.fillRect(.14,-.04,.08,.09);
+ c.strokeStyle='#b16883';c.lineWidth=.06;c.beginPath();c.arc(0,.17,.16,.2,Math.PI-.2);c.stroke();
+ c.restore();
+}
+function profilePost(c,x,y,w,h,i){
+ // Tiny surreal illustrations, drawn locally rather than copied from an account.
+ const palettes=[['#ead5f2','#9e7bc4','#d587b2'],['#ffddcb','#c17da8','#8c70b3'],['#d5d8f4','#8b8fcb','#c388bc']];
+ const [sky,back,front]=palettes[i%3];
+ c.save();rounded(c,x,y,w,h,1.5);c.clip();c.fillStyle=sky;c.fillRect(x,y,w,h);
+ c.beginPath();c.arc(x+w*(i%2?.7:.3),y+h*.28,h*.18,0,TAU);fill(c,i%2?'#fff2d5':'#fff5fc');
+ if(i===2||i===4){
+  rounded(c,x+w*.3,y+h*.2,w*.4,h,w*.2);fill(c,back);
+  rounded(c,x+w*.39,y+h*.35,w*.22,h,w*.11);fill(c,sky);
+ }else{
+  c.beginPath();c.moveTo(x,y+h);c.lineTo(x,y+h*.8);c.quadraticCurveTo(x+w*.4,y-h*.1,x+w,y+h*.8);c.lineTo(x+w,y+h);fill(c,back);
+ }
+ c.beginPath();c.moveTo(x,y+h);c.quadraticCurveTo(x+w*.5,y+h*.35,x+w,y+h*.9);c.lineTo(x+w,y+h);fill(c,front);
+ c.restore();
+}
+function instagramProfile(c,h){
+ instagramHeader(c);
+ appText(c,'luma.daydream',8,47,8,'#202020',700);
+ c.strokeStyle='#262626';c.lineWidth=.9;c.beginPath();c.moveTo(102,42);c.lineTo(105,45);c.lineTo(108,42);c.stroke();
+ const ring=c.createLinearGradient(8,92,40,58);ring.addColorStop(0,'#ffbc52');ring.addColorStop(.45,'#f33a7b');ring.addColorStop(1,'#a13be2');
+ c.beginPath();c.arc(26,76,18,0,TAU);fill(c,ring);c.beginPath();c.arc(26,76,15.8,0,TAU);fill(c,'#fff');profileAvatar(c,26,76,14.3);
+ for(const [x,count,label] of [[57,'6','posts'],[81,'128','followers'],[105,'64','following']]){
+  appText(c,count,x,74,8,'#262626',700,'center');appText(c,label,x,83,4.6,'#555',400,'center');
+ }
+ appText(c,'Luma',8,104,7.5,'#262626',700);appText(c,'Digital daydreamer',8,114,6,'#737373');
+ appText(c,'Little moments, big dreams.',8,124,5.7,'#353535');appText(c,'Fictional creator · AI',8,133,5.2,'#737373');
+ rounded(c,8,141,49,15,4);fill(c,'#0095f6');appText(c,'Follow',32.5,151,6.3,'#fff',700,'center');
+ rounded(c,61,141,49,15,4);fill(c,'#efefef');appText(c,'Message',85.5,151,6.3,'#262626',600,'center');
+ for(const [x,label,i] of [[21,'Days',0],[59,'Dreams',1],[97,'Places',2]]){
+  c.beginPath();c.arc(x,174,10,0,TAU);c.strokeStyle='#d9d9d9';c.lineWidth=.7;c.stroke();
+  c.save();c.beginPath();c.arc(x,174,8.5,0,TAU);c.clip();profilePost(c,x-9,165,18,18,i);c.restore();appText(c,label,x,191,5.4,'#474747',400,'center');
+ }
+ c.strokeStyle='#dbdbdb';c.lineWidth=.5;c.beginPath();c.moveTo(0,197);c.lineTo(118,197);c.stroke();
+ c.strokeStyle='#262626';c.lineWidth=.65;
+ for(let row=0;row<3;row++)for(let col=0;col<3;col++){c.beginPath();c.rect(29+col*2.7,202+row*2.7,1.7,1.7);c.stroke()}
+ c.strokeStyle='#aaa';c.beginPath();c.rect(85,202,7,7);c.stroke();c.beginPath();c.arc(88.5,204.5,1,0,TAU);c.stroke();
+ c.fillStyle='#262626';c.fillRect(0,213,59,1);
+ for(let k=0;k<6;k++)profilePost(c,(k%3)*39.7,216+Math.floor(k/3)*25,38.6,24,k);
+ c.strokeStyle='#262626';c.lineWidth=.9;
+ // Bottom navigation makes this read as a miniature Instagram screen.
+ c.beginPath();c.moveTo(11,h-6);c.lineTo(11,h-11);c.lineTo(15,h-15);c.lineTo(19,h-11);c.lineTo(19,h-6);c.closePath();c.stroke();
+ c.beginPath();c.arc(43,h-11,3,0,TAU);c.moveTo(45,h-9);c.lineTo(48,h-6);c.stroke();
+ rounded(c,68,h-15,8,8,2);c.stroke();c.beginPath();c.moveTo(72,h-13);c.lineTo(72,h-9);c.moveTo(70,h-11);c.lineTo(74,h-11);c.stroke();profileAvatar(c,102,h-11,4.5);
+}
 function makeCard(i){
- const a=off(236,208),c=a.getContext('2d');c.scale(2,2);rounded(c,0,0,118,104,7);fill(c,i<2?'#f5e9f4':'#f0ebfa');
- text(c,['PHOTO_028','PHOTO_104','PRIVATE CHAT','VOICE / CHAT'][i],8,13,6.5,'#5c4268',750);
+ const h=cardHeight(i),a=off(236,h*2),c=a.getContext('2d');c.scale(2,2);rounded(c,0,0,118,h,7);fill(c,i<2?'#f5e9f4':i===2?'#efeae2':'#fff');
+ c.save();c.clip();
  if(i<2){
+  text(c,['PHOTO_028','PHOTO_104'][i],8,13,6.5,'#5c4268',750);
   c.fillStyle='#cbbdca';c.fillRect(7,20,104,62);
   const photo=photoImages[i];
   if(photoReady[i]&&photo.naturalWidth&&photo.naturalHeight){
@@ -60,10 +178,12 @@ function makeCard(i){
    c.drawImage(photo,(photo.naturalWidth-w)/2,(photo.naturalHeight-h)/2,w,h,7,20,104,62);
   }
   text(c,i?'Shiraz, with you.':'Make a wish.',8,95,6.5,'#785b84');
+ }else if(i===2){
+  whatsappCard(c,h);
  }else{
-  [['Are you still awake?',5,23,91],['I saved it for you.',20,43,91],['See you tomorrow ♡',5,63,96]].forEach((v,k)=>{rounded(c,v[1],v[2],v[3],16,4);fill(c,k===1?'#e9b2dd':'#d8cceb');text(c,v[0],v[1]+5,v[2]+10.5,6,'#493651')});
-  text(c,i===3?'00:42  ▂ ▄ ▆ ▃ ▅ ▂':'ENCRYPTED · JUST US',8,96,6,'#826c8d');
+  instagramProfile(c,h);
  }
+ c.restore();
  return a;
 }
 function resize(){
@@ -78,7 +198,7 @@ function resize(){
  viewScale=Math.min(b.width/W,b.height/H);
  viewX=extra+(b.width-W*viewScale)/(compact?1:2);viewY=(b.height-H*viewScale)/2;
  P.x=compact?435:535;P.y=compact?110:86;S.x=P.x+18;S.y=P.y+23;
- tiles=Array.from({length:ITEMS},(_,i)=>({i,x:S.x+18+(i%2)*132,y:S.y+90+Math.floor(i/2)*120,w:118,h:104,asset:makeCard(i),dir:i%2?1:-1}));
+ tiles=Array.from({length:ITEMS},(_,i)=>({i,x:S.x+18+(i%2)*132,y:S.y+90+Math.floor(i/2)*120,w:118,h:cardHeight(i),asset:makeCard(i),dir:i%2?1:-1}));
  if(headline){
   headlineCards=headline.measure({left:b.left-extra+viewX,top:b.top+viewY,scale:viewScale});
   // Use the phone's bite and turn rhythm regardless of the measured row count.
@@ -316,7 +436,7 @@ function fragments(f,pose){
   const sx=target.card.x+paperBites.edge(target.card,target.piece+1,.5),sy=target.y+(rand(n*13+k)-.5)*32;
   const arc=Math.sin(v*Math.PI),x=lerp(sx,m.x,v)-target.card.dir*arc*(4+rand(k)*8),y=lerp(sy,m.y,v)-arc*(6+rand(k+n)*9);
   ctx.save();ctx.translate(x,y);ctx.rotate((k%2?1:-1)*v*3);ctx.scale(1-v*.55,1-v*.55);ctx.globalAlpha=1-smooth((v-.72)/.28);
-  const tx=clamp((target.x-target.card.x)/target.card.w)*220,ty=70+rand(n+k)*80;
+  const tx=clamp((target.x-target.card.x)/target.card.w)*(target.card.asset.width-7),ty=(target.card.h*.5+(rand(n+k)-.5)*40)*2;
   ctx.drawImage(target.card.asset,tx,ty,7,11,-1.75,-2.75,3.5,5.5);ctx.restore();
  }
 }
@@ -468,7 +588,7 @@ function render(t){
  let titleFeed=null,titleRepair=1,titleRow=-1,titlePiece=0,titleQ=0;
  let pose=swimPose(t);
  if(t<FEED){const u=t/FEED;front=pose;frontAlpha=1-smooth((u-.45)/.51);inner=localPose(pose);const pc=projectPhone(inner.x,inner.y),px=projectPhone(inner.x+10,inner.y),py=projectPhone(inner.x,inner.y+10);front.squeeze=lerp(1,Math.hypot(px.x-pc.x,px.y-pc.y)/Math.hypot(py.x-pc.x,py.y-pc.y),smooth(u/.45));insideAlpha=1-frontAlpha;state='BREACHING';phase='SLIPPING THROUGH THE GLASS';}
- else if(t<END){f=feedingPose(t-FEED);inner=f.p;const eaten=f.n+(f.q>=TEAR?1:0);pct=100-eaten/BITES*100;if(eaten===BITES&&f.q<SWALLOW)pct=1;for(let k=0;k<eaten;k++)bites[order[Math.floor(k/3)]]++;state='FEEDING';phase=f.turning?'HUNTING THE NEXT MORSEL':f.q<CONTACT?'TEETH SINK INTO '+(f.target.card.i<2?'A PHOTO':'A PRIVATE CHAT'):'TEAR. CHEW. SWALLOW.';}
+ else if(t<END){f=feedingPose(t-FEED);inner=f.p;const eaten=f.n+(f.q>=TEAR?1:0);pct=100-eaten/BITES*100;if(eaten===BITES&&f.q<SWALLOW)pct=1;for(let k=0;k<eaten;k++)bites[order[Math.floor(k/3)]]++;state='FEEDING';phase=f.turning?'HUNTING THE NEXT MORSEL':f.q<CONTACT?'TEETH SINK INTO '+(f.target.card.i<2?'A PHOTO':f.target.card.i===2?'A WHATSAPP CHAT':'AN INSTAGRAM PROFILE'):'TEAR. CHEW. SWALLOW.';}
  else if(t<DEAD){pct=0;bites.fill(3);inner=localPose(pose);rear=pose;state='DEPLETED';phase='NOTHING LEFT. NOT EVEN A CHARGE.';}
  else if(t<EXIT){const u=smooth((t-DEAD)/(EXIT-DEAD));pct=0;bites.fill(3);inner=localPose(pose);insideAlpha=1-u;rear=pose;state='ESCAPING';phase='DISAPPEARING BEHIND THE PHONE';}
  else if(t<RETURN){const u=(t-EXIT)/(RETURN-EXIT),recharge=smooth((u-.72)/.28);pct=100*recharge;fullness=recharge;if(recharge===0)bites.fill(3);if(u<.68)rear=pose;else front=pose;state=recharge>0?'RESTORING':headline?'HUNTING_HEADLINE':'CIRCLING';phase='STILL HUNGRY.';}
