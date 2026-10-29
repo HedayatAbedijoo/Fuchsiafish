@@ -18,6 +18,7 @@ assets/js/main.js             Page initialization and playback control
 assets/js/campaign/scene.js   Isolated Canvas/WebGL animation and lifecycle
 assets/js/campaign/turn-sequence.js  Continuous sampling of the prepared yaw poses
 assets/js/campaign/turn-atlas.js     Shared frame dimensions, scale and pivot
+assets/js/campaign/paper-bite.js     Tooth-pinned paper mesh and progressive tearing
 assets/images/               Original extracted character assets and favicon
 prototype.html               Unmodified reference prototype
 ```
@@ -33,6 +34,8 @@ A continuous, periodic swim path carries position, speed, and facing through ent
 The travelling tail wave continues through turns and the transition back to the articulated biting jaw. The five feeding turns no longer have an artificial scale dip. Both return turns keep a constant scale; foreground depth is recovered during the straight section between them. The fish stays behind the phone until its larger foreground silhouette clears it. Turn durations, eighteen bite contacts, and the 13.8-second loop are preserved. Motion is sampled from time, so refresh rate does not change playback speed ([requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)).
 
 To check timing and scale regressions, run `node tests/animation.cjs`. To rebuild the prepared atlas offline, use `python3 tools/bake-turn-sequence.py --rife /path/to/rife-ncnn-vulkan`; this needs Pillow, NumPy, pycairo, Node, and the official RIFE 20221029 executable with its `rife-v4.6` model beside it. Preparation uses two background mattes to recover transparency. These are asset preparation dependencies only; visitors download a 3.6 MB WebP and run the normal Canvas renderer. The source PNGs remain unchanged. The build script makes no network calls.
+
+Inside the screen, each 0.30-second bite now has a visible contact, tug, tear and swallow. `paper-bite.js` deforms a mesh textured from the actual card; its bitten point follows a lower-jaw tooth, while the opposite edge stays pinned until the crack reaches both corners. The fish eats from the approaching edge, keeping the remaining paper in front of its face. The same mesh is rendered outside the fish and behind its teeth, with a moving lower-mouth mask, folds, paper fibres and printed fragments. Paper slides behind the throat before removal. Charge changes when the paper tears (64% of the bite), and the last piece is swallowed before the fish begins its next turn. The number of bites and total loop duration remain unchanged.
 
 At widths up to 850px, the headline sits behind the animated scene. The phone is aligned toward the right, while the headline wraps into a readable stack on the left. The fish crosses the words and reveals them when it enters the phone. The shared stage fits small portrait viewports starting at 320 × 568; wider screens retain the side-by-side composition.
 

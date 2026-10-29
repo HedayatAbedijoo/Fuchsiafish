@@ -55,6 +55,7 @@ function mount(compact = false, frontMissing = false, record = false) {
   };
   vm.runInNewContext(fs.readFileSync('tools/turn-source.js','utf8'),sandbox);
   vm.runInNewContext(fs.readFileSync('tools/turn-source-atlas.js','utf8'),sandbox);
+  vm.runInNewContext(fs.readFileSync('assets/js/campaign/paper-bite.js','utf8'),sandbox);
   vm.runInNewContext(source, sandbox);
   const surface = canvas();
   const scene = sandbox.window.FuchsiafishScene.mount({canvas: surface,

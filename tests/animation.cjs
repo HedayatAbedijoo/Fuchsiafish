@@ -54,6 +54,7 @@ function mount(compact = false, frontMissing = false, record = false) {
   };
   vm.runInNewContext(fs.readFileSync('assets/js/campaign/turn-sequence.js','utf8'),sandbox);
   vm.runInNewContext(fs.readFileSync('assets/js/campaign/turn-atlas.js','utf8'),sandbox);
+  vm.runInNewContext(fs.readFileSync('assets/js/campaign/paper-bite.js','utf8'),sandbox);
   vm.runInNewContext(source, sandbox);
   const surface = canvas();
   const scene = sandbox.window.FuchsiafishScene.mount({canvas: surface,
@@ -69,7 +70,16 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
   assert.equal(scene.state.turnFrameCount,129);
   assert(Math.abs(t.CYCLE-13.8)<1e-9);
   for(let n=0;n<18;n++){
-    const contact=t.FEED+Math.floor(n/3)*t.CARD+(n%3+t.CONTACT)*t.BITE;
+    const start=t.FEED+Math.floor(n/3)*t.CARD+n%3*t.BITE;
+    const held=scene.seek(start+(t.CONTACT+.08)*t.BITE);
+    assert.equal(held.jaw,1,'The jaw must hold its grip throughout the tug');
+    assert.equal(held.paper.phase,'pull');assert.equal(held.paper.attached,true);
+    assert.equal(held.bites.reduce((a,b)=>a+b),n,'Contact must not delete the sheet');
+    assert(Math.abs(Math.abs(held.facing)-1)<1e-10,'Do not rotate away while gripping paper');
+    const chewing=scene.seek(start+(t.TEAR+.06)*t.BITE);
+    assert.equal(chewing.paper.phase,'swallow');assert.equal(chewing.paper.attached,false);
+    assert.equal(scene.seek(start+t.SWALLOW*t.BITE+1e-8).paper.visible,false);
+    const contact=start+t.TEAR*t.BITE;
     assert.equal(scene.seek(contact-1e-6).bites.reduce((a,b)=>a+b),n);
     assert.equal(scene.seek(contact+1e-6).bites.reduce((a,b)=>a+b),n+1);
   }
@@ -85,6 +95,9 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
     // the former 5% artificial mid-turn scale dip must not return.
     assert(Math.max(...scales)/Math.min(...scales)<1.02,'No feeding-turn shrink');
   }
+  const lastSwallow=t.FEED+5*t.CARD+(2+t.SWALLOW)*t.BITE;
+  assert.equal(scene.seek(lastSwallow-1e-6).battery,1,'Keep the last swallow visible');
+  assert.equal(scene.seek(lastSwallow+1e-6).battery,0);
   const first=scene.seek(0),last=scene.seek(t.CYCLE);
   assert.deepEqual(first.position,last.position);assert.equal(first.scale,last.scale);
   assert.equal(scene.seek(t.END).battery,0);assert.equal(last.battery,100);
@@ -100,3 +113,32 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
   scene.destroy();
   console.log(`PASS ${compact?'compact':'desktop'}, front fallback ${frontMissing}, 129 continuous samples, 18 bites, constant return-turn scale`);
 }
+
+// The same material coordinates must meet the teeth, the torn card edge and
+// the detached flap. These checks catch substitutions or detached fake scraps.
+const paperSandbox={window:{}};
+vm.runInNewContext(fs.readFileSync('assets/js/campaign/paper-bite.js','utf8'),paperSandbox);
+const paper=paperSandbox.window.FuchsiafishPaperBite;
+for(const dir of [-1,1])for(let piece=0;piece<3;piece++){
+ const card={i:piece,x:100,y:200,w:118,h:104,dir};
+ const centerX=card.x+(paper.edge(card,piece,.5)+paper.edge(card,piece+1,.5))/2;
+ const grip={x:centerX-dir*13,y:249};
+ const make=q=>paper.sample({card,piece,q,grip});
+ for(const q of [.18,.36,.4,.52,.639999,.64,.8,.959999,.96]){
+  const f=make(q);
+  for(const row of f.vertices)for(const v of row){
+   assert([v.x,v.y,v.sx,v.sy].every(Number.isFinite));
+   assert(v.sx>=0&&v.sx<=236&&v.sy>=0&&v.sy<=208);
+  }
+ }
+ for(const q of [paper.CONTACT,.42,.56]){
+  const pin=make(q).vertex(.5,.5);
+  assert(Math.hypot(pin.x-grip.x,pin.y-grip.y)<1e-8,'Paper must follow the actual moving tooth');
+ }
+ const heldRoot=make(.4).vertex(0,0);
+ assert.equal(heldRoot.x,card.x+paper.edge(card,piece+1,0));assert.equal(heldRoot.y,card.y);
+ assert(make(paper.TEAR).vertices.every(row=>row[0].released===1),'Both torn corners must release');
+ assert(make(.959999).vertices.every(row=>row.every(v=>dir*(v.x-grip.x)<-65)), 'Swallow slides all material past the throat before removal');
+ assert.equal(make(paper.SWALLOW).active,false);
+}
+console.log('PASS tooth pin, attached corners, matching tear edges and complete swallowing in both directions');
