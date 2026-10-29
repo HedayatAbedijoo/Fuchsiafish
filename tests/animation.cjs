@@ -111,7 +111,11 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
     const swallowed=scene.seek(t.FEED+group*t.CARD+(2+t.SWALLOW)*t.BITE+1e-6);
     assert.equal(swallowed.battery,75-group*25,'Each complete card consumes a quarter of the charge');
     assert.equal(swallowed.bites.reduce((a,b)=>a+b),(group+1)*3);
+    assert.equal(swallowed.bites.join(','),['0,0,0,3','0,0,3,3','0,3,3,3','3,3,3,3'][group],'Eat both bottom chats before the top photos');
   }
+  const lower=scene.seek(t.FEED+(t.CONTACT+.08)*t.BITE),upper=scene.seek(t.FEED+2*t.CARD+(t.CONTACT+.08)*t.BITE);
+  assert(upper.position.y<lower.position.y-100,'Climb from the bottom chats to the photos');
+  assert(scene.seek(t.FEED*.55).position.y>upper.position.y+100,'Enter at the lower row before feeding');
   const lastSwallow=t.FEED+3*t.CARD+(2+t.SWALLOW)*t.BITE;
   assert.equal(scene.seek(lastSwallow-1e-6).battery,1,'Keep the last swallow visible');
   assert.equal(scene.seek(lastSwallow+1e-6).battery,0);
@@ -121,6 +125,11 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
   assert.equal(scene.seek(t.END).phase,'DEPLETED');
   assert.equal(scene.seek(t.DEAD).phase,'ESCAPING');
   assert.equal(scene.seek(t.DEAD).bites.join(','),'3,3,3,3','Escape after all four cards');
+  const emptied=scene.seek(t.END),rising=scene.seek(t.DEAD),emerged=scene.seek(t.EXIT);
+  assert.equal(emptied.layer,'behind','Start the rear pass before the screen fades');
+  assert(rising.position.y<emptied.position.y-50,'Keep swimming upward immediately after the last swallow');
+  assert(emerged.position.y<rising.position.y-40,'Reach the top rim before full shutdown');
+  assert(emerged.position.y<(compact?110:86)+12,'Keep the fish visibly above the dark phone');
   const player=sandbox.window.FuchsiafishTurnSequence.create({
     image:{complete:true,naturalWidth:3840,naturalHeight:2816},atlas:sandbox.window.FuchsiafishTurnAtlas});
   // Sub-frame angles must survive sampling; a rounded 24/129-frame player fails.
@@ -139,9 +148,48 @@ for(const compact of [false,true]){
   const labels=operations.filter(op=>op[0]==='call'&&op[2]==='fillText').map(op=>op[3]);
   for(const label of ['PHOTO_028','PHOTO_104','PRIVATE CHAT','VOICE / CHAT','04 PRIVATE ITEMS'])assert(labels.includes(label),label);
   for(const label of ['PERSONAL FILE','MEMORIES','06 PRIVATE ITEMS'])assert(!labels.includes(label),`Removed card or stale count: ${label}`);
+  const t=scene.timings;
+  function shutdownAlpha(seconds){
+    // Seek also redraws the previous frame; record only the settled frame.
+    scene.seek(seconds);operations.length=0;scene.pause();
+    const i=operations.findIndex(op=>op[0]==='set'&&op[2]==='fillStyle'&&op[3]==='#03020ba8');
+    if(i<0)return 0;
+    return operations.slice(0,i).findLast(op=>op[0]==='set'&&op[1]===operations[i][1]&&op[2]==='globalAlpha')[3];
+  }
+  assert.equal(shutdownAlpha(t.END),0,'Do not obscure the fish when charge first reaches zero');
+  assert(Math.abs(shutdownAlpha(t.DEAD+.1))<1e-12,'Let the fish reach the rim before fading');
+  assert(Math.abs(shutdownAlpha((t.DEAD+.1+t.EXIT)/2)-.5)<1e-12,'Fade the depleted screen gradually');
+  assert.equal(shutdownAlpha(t.EXIT),1,'Keep the fully depleted screen once the fish has emerged');
+  assert.equal(shutdownAlpha(t.CYCLE),0,'Reset shutdown when entering the next loop');
   scene.destroy();
 }
-console.log('PASS four visible phone cards and matching item counter in both layouts');
+console.log('PASS four phone cards, matching item count and delayed gradual shutdown in both layouts');
+
+for(const compact of [false,true]){
+  const {scene,operations}=mount(compact,false,true,true),t=scene.timings;
+  const midway=t.HEADLINE+(t.HEADLINE_END-t.HEADLINE)/2;
+  function cardAlphas(seconds){
+    scene.seek(seconds);operations.length=0;scene.pause();
+    const alphas=new Map(),cards=[];
+    for(const op of operations){
+      if(op[0]==='set'&&op[2]==='globalAlpha')alphas.set(op[1],op[3]);
+      if(op[0]==='call'&&op[2]==='drawImage'&&op.length===8&&op[6]===118&&op[7]===104)cards.push(alphas.get(op[1]));
+    }
+    return cards;
+  }
+  for(const cycle of [0,1]){
+    const start=cycle*t.CYCLE;
+    for(const at of [t.RETURN-.1,t.HEADLINE+.2,midway-1e-6])assert.equal(cardAlphas(start+at).length,0,'Keep the cards absent until the middle of the title hunt');
+    const partial=cardAlphas(start+midway+.3);
+    assert.equal(partial.length,4);assert(partial.every(alpha=>Math.abs(alpha-.5)<1e-10),'Reveal all four cards gradually during the title hunt');
+    assert.equal(scene.state.phase,'EATING_HEADLINE');
+    const restored=cardAlphas(start+midway+.6+1e-6);
+    assert.equal(restored.length,4);assert(restored.every(alpha=>alpha===1));
+    assert.equal(cardAlphas(start+t.CYCLE).length,4,'The cards are ready before the next phone entry');
+  }
+  scene.destroy();
+}
+console.log('PASS phone cards reappear halfway through the title hunt with a smooth fade, in both layouts and repeated loops');
 
 // The same material coordinates must meet the teeth, the torn card edge and
 // the detached flap. These checks catch substitutions or detached fake scraps.

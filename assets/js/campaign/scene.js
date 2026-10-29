@@ -10,7 +10,7 @@ let photosPending=photoImages.length;
 // Give each change of direction its own time, separate from the paper bites.
 const paperBites=window.FuchsiafishPaperBite;
 const headline=heading&&window.FuchsiafishHeadline?.create(heading);
-const order=[1,0,3,2],ITEMS=order.length,BITES=ITEMS*3;
+const order=[3,2,1,0],ITEMS=order.length,BITES=ITEMS*3;
 const TAU=Math.PI*2, BITE=.225, TURN=.4, CONTACT=paperBites.CONTACT, TEAR=paperBites.TEAR, SWALLOW=paperBites.SWALLOW, CARD=3*BITE+TURN;
 const FEED=1.2, END=FEED+BITES*BITE+(ITEMS-1)*TURN, DEAD=END+.45, EXIT=DEAD+.75, RETURN=EXIT+3.6;
 const HEADLINE=RETURN, HEADLINE_TURN=TURN, REPAIR_START=FEED+.15, REPAIR_END=FEED+3.4;
@@ -125,8 +125,9 @@ function buildSwimPath(){
  const add=(at,p,effort=.55,bend=0)=>swimKeys.push({at,...p,yaw:Math.acos(clamp(p.dir,-1,1)),effort,bend});
  const inside=(at,p,effort=.4,bend=0)=>add(at,planePose(p),effort,bend);
  add(0,start,.75);
- add(FEED*.55,fishPose(P.x-10,S.y+155,.225,1,-.21),.85);
- const first=bitePose(0);inside(FEED,{...first,x:first.x-10},.65);
+ const first=bitePose(0);
+ add(FEED*.55,fishPose(P.x-10,Math.max(start.y,first.y),.225,1,-.21),.85);
+ inside(FEED,{...first,x:first.x-10},.65);
  for(let group=0;group<ITEMS;group++){
   const at=FEED+group*CARD;
   for(let piece=0;piece<3;piece++)inside(at+(piece+CONTACT)*BITE,bitePose(group*3+piece));
@@ -142,12 +143,14 @@ function buildSwimPath(){
  }
  const final=bitePose(BITES-1);
  inside(END,{...final,x:final.x-final.dir*14,y:final.y+3},.35);
- inside(DEAD,fishPose(cx-9,cy+110,.178,0,-.08),.5,-.6);
+ // Rise toward the top rim before the screen goes dark. The rear pass can
+ // already peek out while the clipped screen pass still shows the body.
+ inside(DEAD,fishPose(cx-9,P.y+75,.178,0,-.08),.5,-.6);
  const returnScale=planePose(final).s;
- add(EXIT,fishPose(cx+32,cy+55,returnScale,1,-.13),.65);
+ add(EXIT,fishPose(cx+32,P.y+5,returnScale,1,-.13),.65);
  const duration=RETURN-EXIT;
- add(EXIT+duration*.14,fishPose(Math.min(P.x+P.w+30,W-120),cy-18,returnScale,.8,-.22),.7,.65);
- add(EXIT+duration*.28,fishPose(cx+54,P.y+78,returnScale,0,.04),.65,1);
+ add(EXIT+duration*.14,fishPose(Math.min(P.x+P.w+30,W-120),P.y-5,returnScale,.8,-.22),.7,.65);
+ add(EXIT+duration*.28,fishPose(cx+54,P.y+5,returnScale,0,.04),.65,1);
  add(EXIT+duration*.46,fishPose(P.x-78,P.y+83,returnScale,-1,-.08),.55);
  // Recover foreground depth while swimming straight. Both yaw turns keep
  // their own constant scale; turning itself must never zoom the fish.
@@ -430,7 +433,10 @@ function screen(t,pct,fullness,bites,feedObj,innerPose,insideAlpha){
  }
  // Fine moving glass scanlines put the creature behind the screen surface.
  ctx.fillStyle='#ecd7ff03';for(let y=S.y+(t*9)%4;y<S.y+S.h;y+=4)ctx.fillRect(S.x,y,S.w,1);
- if(pct===0){ctx.fillStyle='#03020ba8';ctx.fillRect(S.x,S.y,S.w,S.h);text(ctx,'NO CHARGE LEFT',S.x+S.w/2,S.y+S.h/2-7,14,'#f096ce',700,'center');text(ctx,'DEVICE DEPLETED',S.x+S.w/2,S.y+S.h/2+14,7,'#91778e',400,'center')}
+ // Keep the departing fish visible until its rear silhouette clears the rim,
+ // then fade to the same depleted screen instead of cutting it off at 0%.
+ const shutdown=pct===0?smooth((t-DEAD-.1)/(EXIT-DEAD-.1)):0;
+ if(shutdown>0){ctx.save();ctx.globalAlpha=shutdown;ctx.fillStyle='#03020ba8';ctx.fillRect(S.x,S.y,S.w,S.h);text(ctx,'NO CHARGE LEFT',S.x+S.w/2,S.y+S.h/2-7,14,'#f096ce',700,'center');text(ctx,'DEVICE DEPLETED',S.x+S.w/2,S.y+S.h/2+14,7,'#91778e',400,'center');ctx.restore()}
  text(ctx,'POWER REMAINING',S.x+18,S.y+S.h-51,7.5,'#b590ad',600);
  text(ctx,Math.round(pct)+'%',S.x+18,S.y+S.h-15,32,pct<15?'#ff537c':'#fff0fb',800);
  text(ctx,pct===0?'EMPTY':feedObj?'BEING CONSUMED':'HUMAN_001',S.x+S.w-18,S.y+S.h-19,7,pct<15?'#ff6a97':'#b38ba8',600,'right');
@@ -463,12 +469,17 @@ function render(t){
  let pose=swimPose(t);
  if(t<FEED){const u=t/FEED;front=pose;frontAlpha=1-smooth((u-.45)/.51);inner=localPose(pose);const pc=projectPhone(inner.x,inner.y),px=projectPhone(inner.x+10,inner.y),py=projectPhone(inner.x,inner.y+10);front.squeeze=lerp(1,Math.hypot(px.x-pc.x,px.y-pc.y)/Math.hypot(py.x-pc.x,py.y-pc.y),smooth(u/.45));insideAlpha=1-frontAlpha;state='BREACHING';phase='SLIPPING THROUGH THE GLASS';}
  else if(t<END){f=feedingPose(t-FEED);inner=f.p;const eaten=f.n+(f.q>=TEAR?1:0);pct=100-eaten/BITES*100;if(eaten===BITES&&f.q<SWALLOW)pct=1;for(let k=0;k<eaten;k++)bites[order[Math.floor(k/3)]]++;state='FEEDING';phase=f.turning?'HUNTING THE NEXT MORSEL':f.q<CONTACT?'TEETH SINK INTO '+(f.target.card.i<2?'A PHOTO':'A PRIVATE CHAT'):'TEAR. CHEW. SWALLOW.';}
- else if(t<DEAD){pct=0;bites.fill(3);inner=localPose(pose);state='DEPLETED';phase='NOTHING LEFT. NOT EVEN A CHARGE.';}
+ else if(t<DEAD){pct=0;bites.fill(3);inner=localPose(pose);rear=pose;state='DEPLETED';phase='NOTHING LEFT. NOT EVEN A CHARGE.';}
  else if(t<EXIT){const u=smooth((t-DEAD)/(EXIT-DEAD));pct=0;bites.fill(3);inner=localPose(pose);insideAlpha=1-u;rear=pose;state='ESCAPING';phase='DISAPPEARING BEHIND THE PHONE';}
  else if(t<RETURN){const u=(t-EXIT)/(RETURN-EXIT),recharge=smooth((u-.72)/.28);pct=100*recharge;fullness=recharge;if(recharge===0)bites.fill(3);if(u<.68)rear=pose;else front=pose;state=recharge>0?'RESTORING':headline?'HUNTING_HEADLINE':'CIRCLING';phase='STILL HUNGRY.';}
  else if(t<HEADLINE_END){titleFeed=headlineFeeding(t);front=pose=titleFeed.p;state='EATING_HEADLINE';phase='TEAR. CHEW. SWALLOW THE WORDS.';}
  else{front=pose;state='RETURNING';phase='BACK THROUGH THE GLASS.';}
  if(headline){
+  // Keep the phone empty until the fish is halfway through eating the title.
+  if(t>=EXIT){
+   const restoreAt=HEADLINE+(HEADLINE_END-HEADLINE)*.5;
+   fullness=smooth((t-restoreAt)/.6);if(fullness===0)bites.fill(3);
+  }
   if(t>=HEADLINE&&t<HEADLINE_END){titleRow=titleFeed.target.row;titlePiece=titleFeed.target.piece;titleQ=titleFeed.q}
   else if(t>=HEADLINE_END)titleRepair=0;
   else if(cycleNo>1&&t<REPAIR_END)titleRepair=clamp((t-REPAIR_START)/(REPAIR_END-REPAIR_START));
