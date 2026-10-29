@@ -16,6 +16,7 @@ build/
 coverage/
 playwright-report/
 test-results/
+previews/
 
 # Local editor and operating-system files
 .idea/

@@ -22,7 +22,9 @@ prototype.html               Unmodified reference prototype
 
 No build, package installation, external font, API, or runtime dependency is needed. Character PNGs are extracted byte-for-byte from the prototype. The original supplied JPG is retained unchanged. Novel links preserve the prototype's destination.
 
-The animation completes a loop in 12.16 seconds. Entry takes one second; cards and charge restore during the final part of the return so the next attack begins immediately. `No Charge Left` appears when the simulated charge reaches zero. Rendering uses uniform scaling to keep the phone and fish proportions consistent.
+The animation completes a loop in 9.6 seconds. Entry takes one second, and the eighteen bites take five seconds; cards and charge restore during the final part of the return so the next attack begins immediately. `No Charge Left` appears when the simulated charge reaches zero. Rendering uses uniform scaling to keep the phone and fish proportions consistent.
+
+At widths up to 850px, the headline sits behind the animated scene. The phone is aligned toward the right, while the headline wraps into a readable stack on the left. The fish crosses the words and reveals them when it enters the phone. The shared stage fits small portrait viewports starting at 320 × 568; wider screens retain the side-by-side composition.
 
 The pause control and Space key on the canvas control playback. Reduced-motion preferences start the scene paused. Rendering stops when the page is hidden or the scene is off-screen. If WebGL is unavailable, the scene uses its Canvas fallback; if the frontal asset is unavailable, the side view remains usable.
 

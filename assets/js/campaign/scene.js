@@ -5,7 +5,8 @@ const mainCtx=canvas.getContext('2d',{alpha:true});
 if (!mainCtx) { onError(); return null; }
 let ctx=mainCtx;
 const image=new Image(),frontImage=new Image();let frontReady=false;
-const TAU=Math.PI*2, BITE=.42, FEED=1.0, END=FEED+18*BITE, DEAD=END+.72, EXIT=DEAD+.58, RETURN=EXIT+2.3, CYCLE=RETURN;
+// Eighteen bites share a five-second feeding window.
+const TAU=Math.PI*2, BITE=5/18, FEED=1.0, END=FEED+18*BITE, DEAD=END+.72, EXIT=DEAD+.58, RETURN=EXIT+2.3, CYCLE=RETURN;
 const clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n)),lerp=(a,b,t)=>a+(b-a)*t,ease=t=>{t=clamp(t);return t*t*(3-2*t)},rand=n=>{const q=Math.sin(n*127.1+311.7)*43758.5453;return q-Math.floor(q)};
 const motionQuery=matchMedia('(prefers-reduced-motion: reduce)');
 let W=960,H=800,dpr=1,elapsed=0,last=0,playing=!motionQuery.matches,ready=false;
@@ -59,7 +60,7 @@ function resize(){
  const compact=matchMedia('(max-width: 850px)').matches;
  W=compact?780:960;H=compact?820:800;dpr=Math.min(devicePixelRatio||1,2);
  canvas.width=Math.round(b.width*dpr);canvas.height=Math.round(b.height*dpr);
- P.x=compact?380:535;P.y=compact?110:86;S.x=P.x+18;S.y=P.y+23;
+ P.x=compact?435:535;P.y=compact?110:86;S.x=P.x+18;S.y=P.y+23;
  tiles=Array.from({length:6},(_,i)=>({i,x:S.x+18+(i%2)*132,y:S.y+90+Math.floor(i/2)*120,w:118,h:104,asset:makeCard(i),dir:i%2?1:-1}));
  buildPhoneMesh();
  if(loaded)render(elapsed%CYCLE);
@@ -177,7 +178,14 @@ function projectPhoneTexture(){
  const vertices=[[x,y,0,1],[x,y+h,0,0],[x+w,y,1,1],[x+w,y+h,1,0]],data=[];
  for(const [u,v,tx,ty] of vertices){const p=projectPhone(u,v),clipW=1/p.k;data.push((2*p.x/W-1)*clipW,(1-2*p.y/H)*clipW,0,clipW,tx,ty)}
  gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.DYNAMIC_DRAW);
- gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,phoneLayer);
+ gl.bindTexture(gl.TEXTURE_2D,texture);
+ try{gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,phoneLayer)}
+ catch(error){
+  // Some browsers taint local file images when the fish enters the phone texture.
+  // Continue with Canvas instead of stopping the animation on direct HTML opening.
+  if(error.name!=='SecurityError')throw error;
+  projector.ready=false;return false;
+ }
  gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
  ctx.drawImage(surface,0,0,W,H);return true;
 }
@@ -262,7 +270,9 @@ function render(t){
  if(!ready)return;// Contain the scene with a uniform scale; never stretch the phone or crop a turn.
  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,canvas.width,canvas.height);
  const scale=Math.min(canvas.width/W,canvas.height/H);
- ctx.setTransform(scale,0,0,scale,(canvas.width-W*scale)/2,(canvas.height-H*scale)/2);background(t);
+ // Compact compositions reserve the left side for the headline behind the fish.
+ const offsetX=(canvas.width-W*scale)/(W===780?1:2);
+ ctx.setTransform(scale,0,0,scale,offsetX,(canvas.height-H*scale)/2);background(t);
  let f=null,inner=null,front=null,rear=null,insideAlpha=1,pct=100,fullness=1,bites=[0,0,0,0,0,0],state='APPROACHING',phase='THE HUNT BEGINS',frontAlpha=1;
  if(t<FEED){const u=ease(t/FEED),target=feedingPose(0).p;front=mixPose(startPose(t),planePose(target),u);front.angle=lerp(0,planePose(target).angle,u);frontAlpha=1-ease((u-.48)/.45);inner=localPose(front);const pc=projectPhone(inner.x,inner.y),px=projectPhone(inner.x+10,inner.y),py=projectPhone(inner.x,inner.y+10);front.squeeze=lerp(1,Math.hypot(px.x-pc.x,px.y-pc.y)/Math.hypot(py.x-pc.x,py.y-pc.y),ease(u/.48));insideAlpha=1-frontAlpha;state='BREACHING';phase='SLIPPING THROUGH THE GLASS';}
  else if(t<END){f=feedingPose(t-FEED);inner=f.p;const eaten=f.n+(f.q>=.35?1:0);pct=100-eaten/18*100;if(f.n===17&&f.q<.9)pct=Math.max(1,pct);for(let k=0;k<eaten;k++)bites[order[Math.floor(k/3)]]++;state='FEEDING';phase=f.q<.35?'TEETH SINK INTO '+['A PHOTO','A PHOTO','A PRIVATE CHAT','A PRIVATE CHAT','A PERSONAL FILE','A MEMORY'][f.target.card.i]:'TEAR. CHEW. SWALLOW.';}
