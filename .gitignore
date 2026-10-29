@@ -1,0 +1,32 @@
+# Local credentials and agent configuration
+.env
+.env.*
+!.env.example
+!.env.sample
+.aws/
+.codex/
+.agents/
+
+# Dependencies, build output, and caches
+node_modules/
+dist/
+build/
+.cache/
+.vite/
+coverage/
+playwright-report/
+test-results/
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Temporary files and logs
+*.log
+*.tmp
+*.temp
