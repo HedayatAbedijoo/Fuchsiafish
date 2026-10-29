@@ -38,12 +38,10 @@ button[hidden] { display: none; }
 .skip-link:focus { transform: translateY(0); }
 .site-header { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); }
 .brand { display: inline-flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 850; letter-spacing: .17em; }
-.brand-mark { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid #ff65bf45; border-radius: 12px; color: var(--pink); background: #ff65bf07; }
-.brand-mark svg { width: 27px; height: 27px; }
+.brand-mark { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; }
+.brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .brand-accent { color: var(--pink); }
 .header-links { display: flex; align-items: center; gap: 29px; }
-.transmission { display: flex; align-items: center; gap: 9px; color: #b5a0bb; font: 9px var(--mono); letter-spacing: .1em; }
-.transmission i { width: 5px; height: 5px; border-radius: 50%; background: var(--pink); box-shadow: 0 0 13px #ff65bfa1; }
 .novel-link { padding: 11px 15px; border: 1px solid #f3d4f32b; border-radius: 99px; font-size: 10px; font-weight: 700; letter-spacing: .06em; white-space: nowrap; transition: border-color .2s, background .2s; }
 .novel-link span:last-child { margin-left: 8px; color: var(--pink); }
 .novel-link:hover { border-color: var(--pink); background: #ff65bf0b; }
@@ -51,27 +49,22 @@ button[hidden] { display: none; }
 .site-footer p { margin: 0; }
 .site-footer > a { white-space: nowrap; font-size: 9px; letter-spacing: .09em; color: #ddc8df; }
 .site-footer > a:hover { color: var(--pink); }
-.mobile-break { display: none; }
 
 @media (max-width: 1100px) {
   .shell { width: calc(100% - 56px); }
-  .transmission { font-size: 8px; }
 }
 @media (max-width: 850px) {
   .shell { width: calc(100% - 40px); }
   .site-header { min-height: 72px; }
-  .transmission { display: none; }
   .site-footer { flex-direction: column; align-items: center; gap: 13px; text-align: center; padding-block: 24px; font-size: 9px; }
 }
 @media (max-width: 520px) {
   .shell { width: calc(100% - 32px); }
   .site-header { min-height: 66px; gap: 10px; }
   .brand { gap: 8px; font-size: 10px; letter-spacing: .13em; }
-  .brand-mark { width: 32px; height: 32px; border-radius: 10px; }
-  .brand-mark svg { width: 23px; height: 23px; }
+  .brand-mark { width: 36px; height: 36px; }
   .novel-link { font-size: 9px; padding: 10px 12px; }
   .wide-label { display: none; }
-  .mobile-break { display: block; }
 }
 @media (max-width: 340px) {
   .shell { width: calc(100% - 24px); }
