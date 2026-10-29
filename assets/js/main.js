@@ -13,6 +13,10 @@
     frontSrc: 'assets/images/fuchsiafish-front.png',
     turnSrc: 'assets/images/fuchsiafish-turn-smooth.webp',
     turnAtlas: window.FuchsiafishTurnAtlas,
+    photoSrcs: [
+      'assets/images/phone-photos/birthday.webp',
+      'assets/images/phone-photos/hafezieh-selfie.webp'
+    ],
     onReady() {
       arena.classList.add('is-ready');
       control.hidden = false;

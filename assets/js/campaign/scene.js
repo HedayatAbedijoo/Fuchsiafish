@@ -1,10 +1,12 @@
 /* Original character artwork, with a continuous swim path and flexible sprite rig. */
 'use strict';
-window.FuchsiafishScene = { mount({ canvas, sideSrc, frontSrc, turnSrc = null, turnFrames = null, turnAtlas = null, onReady = () => {}, onError = () => {}, onPlaybackChange = () => {} }) {
+window.FuchsiafishScene = { mount({ canvas, sideSrc, frontSrc, turnSrc = null, turnFrames = null, turnAtlas = null, photoSrcs = [], onReady = () => {}, onError = () => {}, onPlaybackChange = () => {} }) {
 const mainCtx=canvas.getContext('2d',{alpha:true});
 if (!mainCtx) { onError(); return null; }
 let ctx=mainCtx;
 const image=new Image(),frontImage=new Image(),turnImage=new Image();let frontReady=false,turnSequence=null,turnSettled=!turnSrc;
+const photoImages=photoSrcs.slice(0,2).map(()=>new Image()),photoReady=photoImages.map(()=>false);
+let photosPending=photoImages.length;
 // Give each change of direction its own time, separate from the eighteen bites.
 const paperBites=window.FuchsiafishPaperBite;
 const TAU=Math.PI*2, BITE=.30, TURN=.48, CONTACT=paperBites.CONTACT, TEAR=paperBites.TEAR, SWALLOW=paperBites.SWALLOW, CARD=3*BITE+TURN;
@@ -44,11 +46,15 @@ function makeCard(i){
  const a=off(236,208),c=a.getContext('2d');c.scale(2,2);rounded(c,0,0,118,104,7);fill(c,i<2?'#f5e9f4':'#f0ebfa');
  text(c,['PHOTO_028','PHOTO_104','PRIVATE CHAT','VOICE / CHAT','PERSONAL FILE','MEMORIES'][i],8,13,6.5,'#5c4268',750);
  if(i<2){
-  const g=c.createLinearGradient(0,20,0,80);g.addColorStop(0,i?'#7d64a0':'#46668b');g.addColorStop(1,i?'#f4b4c5':'#d1c9bd');c.fillStyle=g;c.fillRect(7,20,104,62);
-  c.fillStyle=i?'#f9d2a9':'#f7dcbf';c.beginPath();c.arc(82,35,9,0,TAU);c.fill();
-  path(c,[[7,76],[36,43],[57,65],[78,49],[111,80],[111,82],[7,82]]);fill(c,i?'#625077':'#4b6c77');
-  path(c,[[7,82],[48,61],[66,74],[91,64],[111,80],[111,82]]);fill(c,i?'#3e335a':'#294d53');
-  text(c,i?'One last summer.':'Wish you were here.',8,95,6.5,'#785b84');
+  c.fillStyle='#cbbdca';c.fillRect(7,20,104,62);
+  const photo=photoImages[i];
+  if(photoReady[i]&&photo.naturalWidth&&photo.naturalHeight){
+   // Cover the photo window without stretching faces. Baking into the card
+   // also gives the torn flap and swallowed fragments the same illustration.
+   const w=Math.min(photo.naturalWidth,photo.naturalHeight*104/62),h=w*62/104;
+   c.drawImage(photo,(photo.naturalWidth-w)/2,(photo.naturalHeight-h)/2,w,h,7,20,104,62);
+  }
+  text(c,i?'Shiraz, with you.':'Make a wish.',8,95,6.5,'#785b84');
  }else if(i<4){
   [['Are you still awake?',5,23,91],['I saved it for you.',20,43,91],['See you tomorrow ♡',5,63,96]].forEach((v,k)=>{rounded(c,v[1],v[2],v[3],16,4);fill(c,k===1?'#e9b2dd':'#d8cceb');text(c,v[0],v[1]+5,v[2]+10.5,6,'#493651')});
   text(c,i===3?'00:42  ▂ ▄ ▆ ▃ ▅ ▂':'ENCRYPTED · JUST US',8,96,6,'#826c8d');
@@ -414,7 +420,7 @@ const intersectionObserver=new IntersectionObserver(entries=>{
  if(!inView&&frameId){cancelAnimationFrame(frameId);frameId=0}else schedule();
 });intersectionObserver.observe(canvas);
 function boot(){
- if(destroyed||loaded||!image.complete||!image.naturalWidth||!frontSettled||!turnSettled)return;
+ if(destroyed||loaded||!image.complete||!image.naturalWidth||!frontSettled||!turnSettled||photosPending)return;
  rig();loaded=true;resize();render(0);onReady();onPlaybackChange(playing);schedule();
 }
 image.onload=boot;
@@ -428,6 +434,11 @@ turnImage.onload=()=>{
  turnSettled=true;boot();
 };
 turnImage.onerror=()=>{turnSettled=true;boot()};
+photoImages.forEach((photo,i)=>{
+ const settle=ok=>{if(destroyed)return;photoReady[i]=ok;photosPending--;boot()};
+ photo.onload=()=>settle(true);photo.onerror=()=>settle(false);
+ photo.src=photoSrcs[i];
+});
 image.src=sideSrc;frontImage.src=frontSrc;if(turnSrc)turnImage.src=turnSrc;
 return {
  get state(){return stateSnapshot},

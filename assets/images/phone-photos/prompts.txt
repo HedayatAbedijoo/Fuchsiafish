@@ -1,0 +1,26 @@
+Generated with the built-in OpenAI ImageGen tool, from text only.
+No project images, source, screenshots or personal photographs were uploaded.
+These are fantasy cartoon illustrations. Every character is fictional, non-photorealistic, and has uncovered hair.
+
+BIRTHDAY
+Use case: illustration-story.
+Asset type: a landscape illustration, 5:3 aspect ratio, for a tiny personal-gallery card inside an animated phone.
+Primary request: a birthday celebration with completely fictional FANTASY CARTOON CHARACTERS, clearly an illustrated animated world, never a photograph and never realistic human faces.
+Scene: four friendly humanlike fantasy cartoon family members of different adult generations leaning together behind a birthday cake with glowing candles, laughing in a cozy illustrated living room with a few balloons.
+Character design: appealing original animated-film characters with exaggerated large heads and eyes, round simplified noses, expressive eyebrows, softly sculpted toy-like features, simplified painted surfaces. A young woman with loose wavy violet hair, a young man with tousled teal-blue hair, an older woman with uncovered silver curls, and an older man with a swept silver hairstyle. Their full hair is visible. Simple casual shirts and colorful everyday clothes.
+Style: richly colored whimsical cartoon illustration, smooth stylized cel shading with soft painted highlights and clean readable silhouettes. Deliberately fantastical nonrealistic proportions and faces. NO photorealism, no realistic skin texture or pores, no live-action likenesses.
+Composition: all four faces and the cake are large in the central 80% of a wide horizontal frame; chest-up framing, ample room above hair; clear cake and candles near the lower center; recognizable at 104 x 62 pixels. Keep unnecessary details simple.
+Constraints: EVERY character has an uncovered head and visible hair. No hijab, no headscarves, no scarves, no veils, no hats or head coverings of any kind. No real people, no human photograph, no photographic faces, no logos, no text, no caption, no border, no collage, no watermark. One complete illustration with an opaque background.
+
+HAFEZIEH SELFIE
+Use case: illustration-story.
+Asset type: a landscape illustration, 5:3 aspect ratio, for a tiny personal-gallery card inside an animated phone.
+Primary request: two completely fictional FANTASY CARTOON CHARACTERS taking a friendly tourist selfie in front of Hafezieh, the Tomb of Hafez in Shiraz, in a fully illustrated animated world. This is NOT a photograph.
+Characters: a smiling young adult woman with loose wavy violet hair and a smiling young adult man with tousled teal-blue hair. Original appealing humanlike fantasy animated-film designs: exaggerated large heads and eyes, rounded simplified noses, expressive eyebrows, softly sculpted toy-like facial features, simplified painted surfaces, deliberately nonrealistic proportions. Both wear simple casual shirts. Both have entirely uncovered heads with their hair clearly visible.
+Style: richly colored whimsical cartoon illustration, smooth stylized cel shading with soft painted highlights and clean readable silhouettes. Draw both characters AND the background in the same illustrated style. NO photorealism, no realistic skin texture or pores, no live-action likenesses.
+Scene: arm's-length selfie composition with two chest-up characters at lower left and right, smiling toward the viewer. The recognizable Hafezieh pavilion between and above them: low ribbed oxidized-copper dervish-hat-shaped canopy on an open octagonal pale stone pavilion with slender columns, stone steps, cypress trees and gardens in warm afternoon light. Simplify architectural detail while preserving the recognizable silhouette.
+Composition: both faces and the ENTIRE roof silhouette must fit within the central 80% of the landscape frame with breathing room, readable at 104 x 62 pixels; monument is clear, not obscured or out of focus; no phone visible.
+Constraints: exactly two foreground characters, no real people, no human photograph, no photographic faces. No hijab, no headscarves, no scarves, no veils, no hats or head coverings of any kind. No text, captions, logos, watermark, frame or collage. No invented palace, minarets, or giant golden dome. One complete illustration with an opaque background.
+
+Monument description reference:
+https://www.iranicaonline.org/articles/hafez-xiii/
