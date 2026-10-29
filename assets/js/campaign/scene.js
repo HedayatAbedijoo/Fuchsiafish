@@ -1,6 +1,6 @@
 /* Original character artwork, with a continuous swim path and flexible sprite rig. */
 'use strict';
-window.FuchsiafishScene = { mount({ canvas, sideSrc, frontSrc, turnSrc = null, turnFrames = null, turnAtlas = null, photoSrcs = [], onReady = () => {}, onError = () => {}, onPlaybackChange = () => {} }) {
+window.FuchsiafishScene = { mount({ canvas, stage = canvas, heading = null, sideSrc, frontSrc, turnSrc = null, turnFrames = null, turnAtlas = null, photoSrcs = [], onReady = () => {}, onError = () => {}, onPlaybackChange = () => {} }) {
 const mainCtx=canvas.getContext('2d',{alpha:true});
 if (!mainCtx) { onError(); return null; }
 let ctx=mainCtx;
@@ -9,14 +9,17 @@ const photoImages=photoSrcs.slice(0,2).map(()=>new Image()),photoReady=photoImag
 let photosPending=photoImages.length;
 // Give each change of direction its own time, separate from the eighteen bites.
 const paperBites=window.FuchsiafishPaperBite;
+const headline=heading&&window.FuchsiafishHeadline?.create(heading);
 const TAU=Math.PI*2, BITE=.30, TURN=.48, CONTACT=paperBites.CONTACT, TEAR=paperBites.TEAR, SWALLOW=paperBites.SWALLOW, CARD=3*BITE+TURN;
-const FEED=1.2, END=FEED+18*BITE+5*TURN, DEAD=END+.45, EXIT=DEAD+.75, RETURN=EXIT+3.6, CYCLE=RETURN;
+const FEED=1.2, END=FEED+18*BITE+5*TURN, DEAD=END+.45, EXIT=DEAD+.75, RETURN=EXIT+3.6;
+const HEADLINE=RETURN+1.1, HEADLINE_END=HEADLINE+8.1, HEADLINE_TURN=.78, REPAIR_START=FEED+.15, REPAIR_END=FEED+3.4, CYCLE=headline?HEADLINE_END+1.4:RETURN;
 const clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n)),lerp=(a,b,t)=>a+(b-a)*t,rand=n=>{const q=Math.sin(n*127.1+311.7)*43758.5453;return q-Math.floor(q)};
 const smooth=t=>{t=clamp(t);return t*t*t*(10+t*(-15+6*t))};
 const motionQuery=matchMedia('(prefers-reduced-motion: reduce)');
 let W=960,H=800,dpr=1,elapsed=0,last=0,playing=!motionQuery.matches,ready=false;
 let frameId=0,inView=true,destroyed=false,stateSnapshot=null,frontSettled=false;
 let body,tail,jaw,rigFrame,rigCtx,tiles=[],swimKeys=[],cycleNo=1,loaded=false;
+let headlineCards=[],viewScale=1,viewX=0,viewY=0,headlineCardTime=0,headlineBiteTime=0;
 const order=[1,0,3,2,5,4];
 let phoneLayer,phoneCtx,projector=null;
 const P={x:460,y:100,w:322,h:604},S={x:478,y:121,w:286,h:555};
@@ -66,12 +69,22 @@ function makeCard(i){
  return a;
 }
 function resize(){
- const b=canvas.getBoundingClientRect();if(!b.width||!b.height)return;
+ const b=stage.getBoundingClientRect();if(!b.width||!b.height)return;
  const compact=matchMedia('(max-width: 850px)').matches;
  W=compact?780:960;H=compact?820:800;dpr=Math.min(devicePixelRatio||1,2);
- canvas.width=Math.round(b.width*dpr);canvas.height=Math.round(b.height*dpr);
+ // Extend only the drawing surface over the existing heading. The phone and
+ // the entire first visit retain their original stage, scale and coordinates.
+ const extra=headline?Math.max(0,b.left):0;
+ if(headline)canvas.style.width=`${b.width+extra}px`;
+ canvas.width=Math.round((b.width+extra)*dpr);canvas.height=Math.round(b.height*dpr);
+ viewScale=Math.min(b.width/W,b.height/H);
+ viewX=extra+(b.width-W*viewScale)/(compact?1:2);viewY=(b.height-H*viewScale)/2;
  P.x=compact?435:535;P.y=compact?110:86;S.x=P.x+18;S.y=P.y+23;
  tiles=Array.from({length:6},(_,i)=>({i,x:S.x+18+(i%2)*132,y:S.y+90+Math.floor(i/2)*120,w:118,h:104,asset:makeCard(i),dir:i%2?1:-1}));
+ if(headline){
+  headlineCards=headline.measure({left:b.left-extra+viewX,top:b.top+viewY,scale:viewScale});
+  headlineCardTime=(HEADLINE_END-HEADLINE)/headlineCards.length;headlineBiteTime=(headlineCardTime-HEADLINE_TURN)/3;
+ }
  buildSwimPath();
  buildPhoneMesh();
  if(loaded)render(elapsed%CYCLE);
@@ -84,6 +97,24 @@ function jawPin(closed){return jawPoint(1245,625,closed)}
 function bitePose(n){
  const v=biteTarget(n),s=.178,pin=jawPin(1);
  return fishPose(v.x-v.card.dir*(pin.x-820)*s,v.y-(pin.y-520)*s,s,v.card.dir);
+}
+function headlineTarget(n){
+ const row=Math.min(headlineCards.length-1,Math.floor(n/3)),card=headlineCards[row],piece=n%3;
+ return {row,card,piece,x:card.x+(paperBites.edge(card,piece,.5)+paperBites.edge(card,piece+1,.5))/2,y:card.y+card.h/2};
+}
+function headlinePose(n){
+ const v=headlineTarget(n),s=.29,pin=jawPin(1);
+ return fishPose(v.x-v.card.dir*(pin.x-820)*s,v.y-(pin.y-520)*s,s,v.card.dir);
+}
+function headlineFeeding(t){
+ const row=Math.min(headlineCards.length-1,Math.floor((t-HEADLINE)/headlineCardTime));
+ const within=t-HEADLINE-row*headlineCardTime,piece=Math.min(2,Math.floor(within/headlineBiteTime));
+ const q=clamp((within-piece*headlineBiteTime)/headlineBiteTime),target=headlineTarget(row*3+piece),p=swimPose(t),turning=within>=3*headlineBiteTime;
+ if(!turning){
+  const tug=smooth((q-CONTACT)/(TEAR-CONTACT))*(1-smooth((q-.72)/.28));
+  p.x-=target.card.dir*13*tug;p.y-=3*tug;
+ }
+ return {p,q,target,turning,paper:turning?null:paperBites.sample({card:target.card,piece,q,grip:mouth(p,jawClosure(q))})};
 }
 function buildSwimPath(){
  const start=startPose(),cx=P.x+P.w/2,cy=P.y+P.h/2;
@@ -120,13 +151,13 @@ function buildSwimPath(){
  add(EXIT+duration*.62,fishPose(P.x-158,cy-75,start.s,-1,-.22),.65,-.5);
  add(EXIT+duration*.78,fishPose(start.x-78,start.y+56,start.s,0,-.06),.7,-1);
  add(EXIT+duration*.9,fishPose(start.x-43,start.y+27,start.s,.85,-.15),.65,-.35);
- add(CYCLE,start,.75);
+ add(RETURN,start,.75);
  // Periodic, shape-preserving tangents keep velocity continuous at every knot,
  // including the last frame -> first frame, without overshooting a bite or turn.
  const fields=['x','y','s','yaw','angle','effort','bend'];
  swimKeys.forEach((key,i)=>{
-  const prev=i?swimKeys[i-1]:{...swimKeys[swimKeys.length-2],at:swimKeys[swimKeys.length-2].at-CYCLE};
-  const next=i<swimKeys.length-1?swimKeys[i+1]:{...swimKeys[1],at:swimKeys[1].at+CYCLE};
+  const prev=i?swimKeys[i-1]:{...swimKeys[swimKeys.length-2],at:swimKeys[swimKeys.length-2].at-RETURN};
+  const next=i<swimKeys.length-1?swimKeys[i+1]:{...swimKeys[1],at:swimKeys[1].at+RETURN};
   const before=key.at-prev.at,after=next.at-key.at;
   key.velocity={};
   for(const field of fields){
@@ -134,6 +165,40 @@ function buildSwimPath(){
    key.velocity[field]=a*b<=0?0:3*(before+after)/((2*after+before)/a+(after+2*before)/b);
   }
  });
+ if(headlineCards.length){
+  // Append to the already sampled original path. Its knots and tangents stay
+  // intact, so the first phone attack and its return do not change at all.
+  const first=headlinePose(0);
+  add(RETURN+.5,fishPose(lerp(start.x,first.x,.5),lerp(start.y,first.y,.5),.29,0,-.08),.65,-1);
+  for(let row=0;row<headlineCards.length;row++){
+   const at=HEADLINE+row*headlineCardTime;
+   for(let piece=0;piece<3;piece++)add(at+(piece+CONTACT)*headlineBiteTime,headlinePose(row*3+piece),.5);
+   add(at+(2+SWALLOW)*headlineBiteTime,headlinePose(row*3+2),.5);
+   if(row<headlineCards.length-1){
+    const a=headlinePose(row*3+2),b=headlinePose((row+1)*3);
+    const turn=at+3*headlineBiteTime;
+    // Eat each line from the right, keeping the body inside narrow viewports.
+    // Turn, swim back along the gap, then turn into the following line.
+    add(turn+HEADLINE_TURN*.2,fishPose(a.x-10,a.y+16,.29,0,.06),.65,-1);
+    add(turn+HEADLINE_TURN*.45,fishPose(lerp(a.x,b.x,.35),(a.y+b.y)/2,.29,1,-.04),.7);
+    add(turn+HEADLINE_TURN*.65,fishPose(b.x-12,b.y-12,.29,1,-.04),.7);
+    add(turn+HEADLINE_TURN*.84,fishPose(b.x,b.y-5,.29,0,.03),.65,1);
+   }
+  }
+  const final=headlinePose(headlineCards.length*3-1);
+  add(HEADLINE_END,final,.5);
+  add(HEADLINE_END+.65,fishPose(lerp(final.x,start.x,.48),lerp(final.y,start.y,.48)+35,.29,0,-.08),.7,-1);
+  add(CYCLE,start,.75);
+  for(let i=swimKeys.findIndex(key=>key.at===RETURN)+1;i<swimKeys.length;i++){
+   const key=swimKeys[i],prev=swimKeys[i-1],next=swimKeys[i+1]||{...swimKeys[1],at:CYCLE+swimKeys[1].at};
+   const before=key.at-prev.at,after=next.at-key.at;key.velocity={};
+   for(const field of fields){
+    const a=(key[field]-prev[field])/before,b=(next[field]-key[field])/after;
+    key.velocity[field]=a*b<=0?0:3*(before+after)/((2*after+before)/a+(after+2*before)/b);
+   }
+  }
+  swimKeys.at(-1).velocity={...swimKeys[0].velocity};
+ }
 }
 function swimPose(t){
  t=((t%CYCLE)+CYCLE)%CYCLE;
@@ -144,11 +209,12 @@ function swimPose(t){
  p.effort=value('effort');p.bend=value('bend');
  // This gentle heave continues through feeding and layer changes. All wave
  // frequencies are whole cycles, so seeking and looping produce the same pose.
- const phase=t*TAU/CYCLE;
+ const phase=swimPhase(t);
  p.y+=(.7+2.6*smooth((p.s-.178)/.112))*Math.sin(phase*7);
  p.angle+=.009*Math.sin(phase*11);
  return p;
 }
+function swimPhase(t){return t<=RETURN?t*TAU/RETURN:(t-RETURN)*TAU/(CYCLE-RETURN)}
 function feedingPose(f){
  const group=Math.min(5,Math.floor(Math.max(0,f)/CARD)),within=Math.max(0,f-group*CARD);
  const piece=Math.min(2,Math.floor(within/BITE)),n=group*3+piece,q=clamp((within-piece*BITE)/BITE);
@@ -166,7 +232,7 @@ function fish(c,p,t,closed=0,paper=null,alpha=1){
  if(!ready||alpha<=0)return;
  if(p.squeeze){c.save();c.translate(p.x,p.y);c.rotate(p.angle);c.scale(p.squeeze,1);c.rotate(-p.angle);c.translate(-p.x,-p.y);fish(c,{...p,squeeze:undefined},t,closed,paper,alpha);c.restore();return}
  if(turnSequence&&Math.abs(p.dir)<1-1e-7){
-  const phase=t*TAU/CYCLE*22,amplitude=25+22*(p.effort??.55);
+  const phase=swimPhase(t)*22,amplitude=25+22*(p.effort??.55);
   turnSequence.draw(c,p,alpha,x=>{
    const tailward=clamp((180-x*p.dir)/850)*Math.abs(p.dir);
    return tailward*tailward*(amplitude*Math.sin(phase-tailward*3.1)+(p.bend||0)*36);
@@ -206,7 +272,7 @@ function sideFish(c,p,t,closed=0,paper=null,alpha=1){
  }
  r.save();r.translate(805,685);r.rotate(-.145*closed);r.translate(-805,-685);r.drawImage(jaw,0,0);r.restore();
  c.save();c.globalAlpha=alpha;c.translate(p.x,p.y);c.rotate(p.angle);c.scale(p.s*p.dir,p.s);c.translate(-820,-520);
- const phase=t*TAU/CYCLE*22,amplitude=25+22*(p.effort??.55),bend=p.bend||0;
+ const phase=swimPhase(t)*22,amplitude=25+22*(p.effort??.55),bend=p.bend||0;
  flexSprite(c,rigFrame,1536,1024,x=>{
   const tailward=clamp((1000-x)/850);
   return tailward*tailward*(amplitude*Math.sin(phase-tailward*3.1)+bend*36);
@@ -380,22 +446,32 @@ function background(t){
 function render(t){
  if(!ready)return;// Contain the scene with a uniform scale; never stretch the phone or crop a turn.
  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,canvas.width,canvas.height);
- const scale=Math.min(canvas.width/W,canvas.height/H);
- // Compact compositions reserve the left side for the headline behind the fish.
- const offsetX=(canvas.width-W*scale)/(W===780?1:2);
- ctx.setTransform(scale,0,0,scale,offsetX,(canvas.height-H*scale)/2);background(t);
+ ctx.setTransform(viewScale*dpr,0,0,viewScale*dpr,viewX*dpr,viewY*dpr);background(t);
  let f=null,inner=null,front=null,rear=null,insideAlpha=1,pct=100,fullness=1,bites=[0,0,0,0,0,0],state='APPROACHING',phase='THE HUNT BEGINS',frontAlpha=1;
- const pose=swimPose(t);
+ let titleFeed=null,titleRepair=1,titleRow=-1,titlePiece=0,titleQ=0;
+ let pose=swimPose(t);
  if(t<FEED){const u=t/FEED;front=pose;frontAlpha=1-smooth((u-.45)/.51);inner=localPose(pose);const pc=projectPhone(inner.x,inner.y),px=projectPhone(inner.x+10,inner.y),py=projectPhone(inner.x,inner.y+10);front.squeeze=lerp(1,Math.hypot(px.x-pc.x,px.y-pc.y)/Math.hypot(py.x-pc.x,py.y-pc.y),smooth(u/.45));insideAlpha=1-frontAlpha;state='BREACHING';phase='SLIPPING THROUGH THE GLASS';}
  else if(t<END){f=feedingPose(t-FEED);inner=f.p;const eaten=f.n+(f.q>=TEAR?1:0);pct=100-eaten/18*100;if(eaten===18&&f.q<SWALLOW)pct=1;for(let k=0;k<eaten;k++)bites[order[Math.floor(k/3)]]++;state='FEEDING';phase=f.turning?'HUNTING THE NEXT MORSEL':f.q<CONTACT?'TEETH SINK INTO '+['A PHOTO','A PHOTO','A PRIVATE CHAT','A PRIVATE CHAT','A PERSONAL FILE','A MEMORY'][f.target.card.i]:'TEAR. CHEW. SWALLOW.';}
  else if(t<DEAD){pct=0;bites.fill(3);inner=localPose(pose);state='DEPLETED';phase='NOTHING LEFT. NOT EVEN A CHARGE.';}
  else if(t<EXIT){const u=smooth((t-DEAD)/(EXIT-DEAD));pct=0;bites.fill(3);inner=localPose(pose);insideAlpha=1-u;rear=pose;state='ESCAPING';phase='DISAPPEARING BEHIND THE PHONE';}
- else{const u=(t-EXIT)/(RETURN-EXIT),recharge=smooth((u-.72)/.28);pct=100*recharge;fullness=recharge;if(recharge===0)bites.fill(3);if(u<.68)rear=pose;else front=pose;state=recharge>0?'RESTORING':'CIRCLING';phase='STILL HUNGRY.';}
+ else if(t<RETURN){const u=(t-EXIT)/(RETURN-EXIT),recharge=smooth((u-.72)/.28);pct=100*recharge;fullness=recharge;if(recharge===0)bites.fill(3);if(u<.68)rear=pose;else front=pose;state=recharge>0?'RESTORING':'CIRCLING';phase='STILL HUNGRY.';}
+ else if(t<HEADLINE){front=pose;state='HUNTING_HEADLINE';phase='THE WORDS ARE NEXT.';}
+ else if(t<HEADLINE_END){titleFeed=headlineFeeding(t);front=pose=titleFeed.p;state='EATING_HEADLINE';phase='TEAR. CHEW. SWALLOW THE WORDS.';}
+ else{front=pose;state='RETURNING';phase='BACK THROUGH THE GLASS.';}
+ if(headline){
+  if(t>=HEADLINE&&t<HEADLINE_END){titleRow=titleFeed.target.row;titlePiece=titleFeed.target.piece;titleQ=titleFeed.q}
+  else if(t>=HEADLINE_END)titleRepair=0;
+  else if(cycleNo>1&&t<REPAIR_END)titleRepair=clamp((t-REPAIR_START)/(REPAIR_END-REPAIR_START));
+  headline.update({row:titleRow,piece:titlePiece,q:titleQ,repair:titleRepair});
+ }
  if(f&&!f.turning)f.paper=paperBites.sample({card:f.target.card,piece:f.target.piece,q:f.q,grip:mouth(inner,jawClosure(f.q))});
  if(rear)fish(ctx,rear,t,.08,null,1);
  drawPhone(t,pct,fullness,bites,f,inner,insideAlpha);
- if(front)fish(ctx,front,t,.08,null,frontAlpha);
- stateSnapshot={time:t,cycle:cycleNo,phase:state,battery:Math.round(pct),bites:bites.slice(),jaw:f?jawClosure(f.q):.08,paper:f?.paper?{phase:f.paper.phase,attached:f.paper.attached,visible:f.paper.active,grip:f.paper.grip}:null,layer:rear?'behind':inner?'screen':'front',playing,facing:pose.dir,position:{x:pose.x,y:pose.y},scale:pose.s,bank:pose.angle,turning:!!f?.turning,hasFrontView:frontReady,turnFrameCount:turnSequence?.frameCount||0,turnFrame:turnSequence?turnSequence.frameForFacing(pose.dir):null,perspectiveRenderer:projector?.ready?'webgl':'canvas'};
+ const titlePaper=titleFeed?.paper;
+ if(titlePaper?.active)paperBites.draw(ctx,titlePaper,false);
+ if(front)fish(ctx,front,t,titleFeed?jawClosure(titleFeed.q):.08,titlePaper?.active?c=>paperBites.draw(c,titlePaper,false):null,frontAlpha);
+ const currentPaper=f?.paper||titlePaper;
+ stateSnapshot={time:t,cycle:cycleNo,phase:state,battery:Math.round(pct),bites:bites.slice(),headline:headline?{row:titleRow,piece:titlePiece,q:titleQ,repair:titleRepair,rows:headlineCards.length}:null,jaw:f?jawClosure(f.q):titleFeed?jawClosure(titleFeed.q):.08,paper:currentPaper?{phase:currentPaper.phase,attached:currentPaper.attached,visible:currentPaper.active,grip:currentPaper.grip}:null,layer:rear?'behind':inner?'screen':'front',playing,facing:pose.dir,position:{x:pose.x,y:pose.y},scale:pose.s,bank:pose.angle,turning:!!(f?.turning||titleFeed?.turning),hasFrontView:frontReady,turnFrameCount:turnSequence?.frameCount||0,turnFrame:turnSequence?turnSequence.frameForFacing(pose.dir):null,perspectiveRenderer:projector?.ready?'webgl':'canvas'};
 }
 function canAnimate(){return loaded&&playing&&inView&&!document.hidden&&!destroyed}
 function schedule(){if(canAnimate()&&!frameId)frameId=requestAnimationFrame(tick)}
@@ -414,7 +490,7 @@ function motionChange(){setPlaying(!motionQuery.matches)}
 canvas.addEventListener('keydown',keydown);
 document.addEventListener('visibilitychange',visibility);
 motionQuery.addEventListener('change',motionChange);
-const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(canvas);
+const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(stage);if(heading)resizeObserver.observe(heading);
 const intersectionObserver=new IntersectionObserver(entries=>{
  inView=entries[0].isIntersecting;last=0;
  if(!inView&&frameId){cancelAnimationFrame(frameId);frameId=0}else schedule();
@@ -442,9 +518,9 @@ photoImages.forEach((photo,i)=>{
 image.src=sideSrc;frontImage.src=frontSrc;if(turnSrc)turnImage.src=turnSrc;
 return {
  get state(){return stateSnapshot},
- timings:{FEED,END,DEAD,EXIT,RETURN,CYCLE,BITE,TURN,CARD,CONTACT,TEAR,SWALLOW},
+ timings:{FEED,END,DEAD,EXIT,RETURN,CYCLE,BITE,TURN,CARD,CONTACT,TEAR,SWALLOW,HEADLINE,HEADLINE_END,HEADLINE_TURN,REPAIR_START,REPAIR_END},
  pause(){setPlaying(false)},resume(){setPlaying(true)},toggle(){setPlaying(!playing)},
  seek(seconds){setPlaying(false);elapsed=Math.max(0,seconds);cycleNo=Math.floor(elapsed/CYCLE)+1;if(loaded)render(elapsed%CYCLE);return stateSnapshot},
- destroy(){destroyed=true;cancelAnimationFrame(frameId);resizeObserver.disconnect();intersectionObserver.disconnect();canvas.removeEventListener('keydown',keydown);document.removeEventListener('visibilitychange',visibility);motionQuery.removeEventListener('change',motionChange);projector?.gl.getExtension('WEBGL_lose_context')?.loseContext()}
+ destroy(){destroyed=true;cancelAnimationFrame(frameId);resizeObserver.disconnect();intersectionObserver.disconnect();canvas.removeEventListener('keydown',keydown);document.removeEventListener('visibilitychange',visibility);motionQuery.removeEventListener('change',motionChange);headline?.destroy();if(headline)canvas.style.width='';projector?.gl.getExtension('WEBGL_lose_context')?.loseContext()}
 };
 }};

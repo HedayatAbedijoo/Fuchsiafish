@@ -73,9 +73,11 @@ window.FuchsiafishPaperBite = (() => {
     const {card,vertices,pull,swallow}=frame;
     for(let row=0;row<ROWS;row++)for(let col=0;col<COLS;col++){
       const a=vertices[row][col],b=vertices[row][col+1],c=vertices[row+1][col+1],d=vertices[row+1][col];
-      const shade=(.04+.14*Math.max(0,Math.sin(row/ROWS*Math.PI*3)))*pull;
+      const shade=card.typography?0:(.04+.14*Math.max(0,Math.sin(row/ROWS*Math.PI*3)))*pull;
       triangle(ctx,card.asset,a,b,c,shade);triangle(ctx,card.asset,a,c,d,shade);
     }
+    // Headline flaps consist of ink with transparent space between letters.
+    if(card.typography)return;
     // Creases shade the actual printed material; no substitute white sprite.
     ctx.save();ctx.lineWidth=.65;ctx.strokeStyle=`rgba(255,249,252,${pull*.8})`;
     for(const row of [4,8]){

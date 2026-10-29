@@ -3,14 +3,14 @@ const vm = require('vm');
 const assert = require('assert/strict');
 let source = fs.readFileSync(process.cwd() + '/assets/js/campaign/scene.js', 'utf8');
 
-function mount(compact = false, frontMissing = false, record = false) {
+function mount(compact = false, frontMissing = false, record = false, withHeadline = false) {
   let frames = 0, serial = 0, operations = [], canvasCount = 0;
   const contexts = [], images = [];
   const append = (...args) => { if (record) operations.push(args); };
   const encode = x => x && typeof x === 'object' && x.id ? { ref: x.id } : x;
   function canvas() {
     const id = `canvas${canvasCount++}`;
-    const target = { id, width: 300, height: 150, addEventListener() {}, removeEventListener() {}, getBoundingClientRect() { return {width: compact ? 390 : 960, height: compact ? 490 : 800}; } };
+    const target = { id, style: {}, width: 300, height: 150, addEventListener() {}, removeEventListener() {}, getBoundingClientRect() { return {left:0,top:0,width: compact ? 390 : 960, height: compact ? 490 : 800}; } };
     append('canvas', id, 300, 150);
     let depth = 0;
     const state = {};
@@ -52,14 +52,20 @@ function mount(compact = false, frontMissing = false, record = false) {
     ResizeObserver: class {observe(){} disconnect(){}}, IntersectionObserver: class {observe(){} disconnect(){}},
     requestAnimationFrame() { return ++frames; }, cancelAnimationFrame() {}
   };
+  let headlineState=null,headlineDestroyed=false;
+  if(withHeadline)sandbox.window.FuchsiafishHeadline={create(){return {
+    measure(){return Array.from({length:compact?5:3},(_,i)=>({i:20+i,x:compact?35:-660,y:150+i*(compact?85:92),w:i===0?150:compact?300:610,h:i===0&&compact?28:78,asset:canvas(),dir:-1,typography:true}))},
+    update(state){headlineState=state},destroy(){headlineDestroyed=true}
+  }}};
   vm.runInNewContext(fs.readFileSync('assets/js/campaign/turn-sequence.js','utf8'),sandbox);
   vm.runInNewContext(fs.readFileSync('assets/js/campaign/turn-atlas.js','utf8'),sandbox);
   vm.runInNewContext(fs.readFileSync('assets/js/campaign/paper-bite.js','utf8'),sandbox);
   vm.runInNewContext(source, sandbox);
   const surface = canvas();
   const scene = sandbox.window.FuchsiafishScene.mount({canvas: surface,
+    heading:withHeadline?{closest(){return {getBoundingClientRect(){return {left:compact?0:-720}}}}}:null,
     sideSrc: process.cwd() + '/assets/images/fuchsiafish-side.png', frontSrc: process.cwd() + '/assets/images/fuchsiafish-front.png',turnSrc:process.cwd()+'/assets/images/fuchsiafish-turn-smooth.webp',turnAtlas:sandbox.window.FuchsiafishTurnAtlas});
-  return {scene, contexts, operations, surface, sandbox};
+  return {scene, contexts, operations, surface, sandbox, get headlineState(){return headlineState},get headlineDestroyed(){return headlineDestroyed}};
 }
 
 
@@ -142,3 +148,48 @@ for(const dir of [-1,1])for(let piece=0;piece<3;piece++){
  assert.equal(make(paper.SWALLOW).active,false);
 }
 console.log('PASS tooth pin, attached corners, matching tear edges and complete swallowing in both directions');
+
+// The added hunt must happen after the complete original phone visit. Compare
+// both renderers, then follow two more loops and the delayed rebuilding of ink.
+function sameFrame(actual,expected,message){
+ if(typeof actual==='number'&&typeof expected==='number')assert(Math.abs(actual-expected)<1e-8,message);
+ else if(actual&&typeof actual==='object'){
+  assert.equal(JSON.stringify(Object.keys(actual)),JSON.stringify(Object.keys(expected)),message);
+  for(const key of Object.keys(actual))sameFrame(actual[key],expected[key],message);
+ }else assert.equal(actual,expected,message);
+}
+for(const compact of [false,true]){
+ const baseline=mount(compact),extended=mount(compact,false,false,true),scene=extended.scene,t=scene.timings;
+ assert(t.CYCLE>t.HEADLINE_END&&t.HEADLINE>t.RETURN);
+ for(let time=0;time<t.RETURN-1e-6;time+=1/24){
+  const before=baseline.scene.seek(time),after=scene.seek(time);
+  for(const field of ['position','facing','scale','bank','battery','bites','jaw','paper','layer'])sameFrame(after[field],before[field],`First phone visit changed at ${time}: ${field}`);
+  assert.equal(extended.headlineState.repair,1,'Do not eat the headline during the first phone visit');
+ }
+ const rows=compact?5:3,cardTime=(t.HEADLINE_END-t.HEADLINE)/rows,biteTime=(cardTime-t.HEADLINE_TURN)/3;
+ for(let row=0;row<rows;row++)for(let piece=0;piece<3;piece++){
+  const at=t.HEADLINE+row*cardTime+piece*biteTime;
+  const held=scene.seek(at+(t.CONTACT+.08)*biteTime);
+  assert.equal(held.phase,'EATING_HEADLINE');assert.equal(held.headline.row,row);assert.equal(held.headline.piece,piece);
+  assert.equal(held.jaw,1);assert.equal(held.paper.attached,true);assert.equal(held.paper.phase,'pull');
+  assert(Math.abs(held.facing+1)<1e-10,'Keep facing the letters while gripping them');
+  assert.equal(held.layer,'front');assert.equal(held.battery,100);
+  assert.equal(scene.seek(at+(t.TEAR+.04)*biteTime).paper.phase,'swallow');
+  assert.equal(scene.seek(at+(t.SWALLOW+1e-6)*biteTime).paper.visible,false);
+ }
+ for(let time=t.RETURN;time<t.CYCLE;time+=1/60)assert(Math.abs(scene.seek(time).scale-.29)<1e-12,'No zoom during the headline hunt');
+ assert.equal(scene.seek(t.HEADLINE_END+.1).headline.repair,0);
+ for(const cycle of [1,2]){
+  const start=cycle*t.CYCLE;
+  const entry=scene.seek(start);assert.equal(entry.phase,'BREACHING');assert.equal(entry.headline.repair,0);
+  sameFrame(entry.position,baseline.scene.seek(0).position,'Return seamlessly to the next phone entry');
+  assert(scene.seek(start+t.REPAIR_START).headline.repair<1e-12);
+  const repair=scene.seek(start+(t.REPAIR_START+t.REPAIR_END)/2);
+  assert.equal(repair.phase,'FEEDING');assert(Math.abs(repair.headline.repair-.5)<1e-12);
+  assert.equal(scene.seek(start+t.REPAIR_END+1e-6).headline.repair,1);
+  assert.equal(scene.seek(start+t.HEADLINE+.2).phase,'EATING_HEADLINE');
+ }
+ assert(extended.contexts.every(c=>c.depth===0),'Canvas save/restore balance through the added hunt');
+ baseline.scene.destroy();scene.destroy();assert.equal(extended.headlineDestroyed,true);
+ console.log(`PASS ${compact?'compact':'desktop'}: unchanged first visit, ${rows*3} headline bites, slow repair and repeated hunts`);
+}

@@ -9,6 +9,8 @@
 
   const scene = window.FuchsiafishScene.mount({
     canvas,
+    stage: arena,
+    heading: document.getElementById('campaign-title'),
     sideSrc: 'assets/images/fuchsiafish-side.png',
     frontSrc: 'assets/images/fuchsiafish-front.png',
     turnSrc: 'assets/images/fuchsiafish-turn-smooth.webp',
