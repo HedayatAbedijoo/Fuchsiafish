@@ -74,8 +74,11 @@ function mount(compact = false, frontMissing = false, record = false, withHeadli
 for (const compact of [false, true]) for (const frontMissing of [false, true]) {
   const {scene,contexts,sandbox}=mount(compact,frontMissing),t=scene.timings;
   assert.equal(scene.state.turnFrameCount,129);
-  assert(Math.abs(t.CYCLE-13.8)<1e-9);
-  for(let n=0;n<18;n++){
+  assert.equal(t.ITEMS,4);assert.equal(t.BITES,12);
+  assert.equal(scene.state.bites.length,4,'Only the two photos and two chats remain');
+  assert(Math.abs((t.END-t.FEED)-7.8/2)<1e-9,'Halve the former feeding time');
+  assert(Math.abs(t.CYCLE-9.9)<1e-9);
+  for(let n=0;n<12;n++){
     const start=t.FEED+Math.floor(n/3)*t.CARD+n%3*t.BITE;
     const held=scene.seek(start+(t.CONTACT+.08)*t.BITE);
     assert.equal(held.jaw,1,'The jaw must hold its grip throughout the tug');
@@ -86,14 +89,17 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
     assert.equal(chewing.paper.phase,'swallow');assert.equal(chewing.paper.attached,false);
     assert.equal(scene.seek(start+t.SWALLOW*t.BITE+1e-8).paper.visible,false);
     const contact=start+t.TEAR*t.BITE;
-    assert.equal(scene.seek(contact-1e-6).bites.reduce((a,b)=>a+b),n);
-    assert.equal(scene.seek(contact+1e-6).bites.reduce((a,b)=>a+b),n+1);
+    const before=scene.seek(contact-1e-6),after=scene.seek(contact+1e-6);
+    assert.equal(before.bites.reduce((a,b)=>a+b),n);
+    assert.equal(after.bites.reduce((a,b)=>a+b),n+1);
+    assert.equal(before.battery,Math.round(100-n/12*100),'Charge follows each of the twelve tears');
+    assert.equal(after.battery,n===11?1:Math.round(100-(n+1)/12*100));
   }
   for(const [a,b] of [[t.EXIT,t.EXIT+3.6*.46],[t.EXIT+3.6*.62,t.CYCLE]]){
     const expected=scene.seek(a).scale;
     for(let time=a;time<b;time+=1/120)assert(Math.abs(scene.seek(time).scale-expected)<1e-12,'Yaw must not change return scale');
   }
-  for(let group=0;group<5;group++){
+  for(let group=0;group<3;group++){
     const from=t.FEED+group*t.CARD+(2+t.CONTACT)*t.BITE,to=t.FEED+(group+1)*t.CARD+t.CONTACT*t.BITE;
     const scales=[];
     for(let time=from;time<=to;time+=1/120)scales.push(scene.seek(time).scale);
@@ -101,12 +107,20 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
     // the former 5% artificial mid-turn scale dip must not return.
     assert(Math.max(...scales)/Math.min(...scales)<1.02,'No feeding-turn shrink');
   }
-  const lastSwallow=t.FEED+5*t.CARD+(2+t.SWALLOW)*t.BITE;
+  for(let group=0;group<4;group++){
+    const swallowed=scene.seek(t.FEED+group*t.CARD+(2+t.SWALLOW)*t.BITE+1e-6);
+    assert.equal(swallowed.battery,75-group*25,'Each complete card consumes a quarter of the charge');
+    assert.equal(swallowed.bites.reduce((a,b)=>a+b),(group+1)*3);
+  }
+  const lastSwallow=t.FEED+3*t.CARD+(2+t.SWALLOW)*t.BITE;
   assert.equal(scene.seek(lastSwallow-1e-6).battery,1,'Keep the last swallow visible');
   assert.equal(scene.seek(lastSwallow+1e-6).battery,0);
   const first=scene.seek(0),last=scene.seek(t.CYCLE);
   assert.deepEqual(first.position,last.position);assert.equal(first.scale,last.scale);
   assert.equal(scene.seek(t.END).battery,0);assert.equal(last.battery,100);
+  assert.equal(scene.seek(t.END).phase,'DEPLETED');
+  assert.equal(scene.seek(t.DEAD).phase,'ESCAPING');
+  assert.equal(scene.seek(t.DEAD).bites.join(','),'3,3,3,3','Escape after all four cards');
   const player=sandbox.window.FuchsiafishTurnSequence.create({
     image:{complete:true,naturalWidth:3840,naturalHeight:2816},atlas:sandbox.window.FuchsiafishTurnAtlas});
   // Sub-frame angles must survive sampling; a rounded 24/129-frame player fails.
@@ -117,8 +131,17 @@ for (const compact of [false, true]) for (const frontMissing of [false, true]) {
   assert(contexts.every(c=>c.depth===0),'Canvas save/restore balance');
   scene.pause();assert.equal(scene.state.playing,false);scene.resume();assert.equal(scene.state.playing,true);
   scene.destroy();
-  console.log(`PASS ${compact?'compact':'desktop'}, front fallback ${frontMissing}, 129 continuous samples, 18 bites, constant return-turn scale`);
+  console.log(`PASS ${compact?'compact':'desktop'}, front fallback ${frontMissing}, 129 continuous samples, 12 bites in 3.9 seconds, proportional battery, constant return-turn scale`);
 }
+
+for(const compact of [false,true]){
+  const {scene,operations}=mount(compact,false,true);
+  const labels=operations.filter(op=>op[0]==='call'&&op[2]==='fillText').map(op=>op[3]);
+  for(const label of ['PHOTO_028','PHOTO_104','PRIVATE CHAT','VOICE / CHAT','04 PRIVATE ITEMS'])assert(labels.includes(label),label);
+  for(const label of ['PERSONAL FILE','MEMORIES','06 PRIVATE ITEMS'])assert(!labels.includes(label),`Removed card or stale count: ${label}`);
+  scene.destroy();
+}
+console.log('PASS four visible phone cards and matching item counter in both layouts');
 
 // The same material coordinates must meet the teeth, the torn card edge and
 // the detached flap. These checks catch substitutions or detached fake scraps.
@@ -149,7 +172,7 @@ for(const dir of [-1,1])for(let piece=0;piece<3;piece++){
 }
 console.log('PASS tooth pin, attached corners, matching tear edges and complete swallowing in both directions');
 
-// The added hunt must happen after the complete original phone visit. Compare
+// The added hunt must happen after the complete shortened phone visit. Compare
 // both renderers, then follow two more loops and the delayed rebuilding of ink.
 function sameFrame(actual,expected,message){
  if(typeof actual==='number'&&typeof expected==='number')assert(Math.abs(actual-expected)<1e-8,message);
