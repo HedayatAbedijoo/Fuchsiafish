@@ -31,3 +31,7 @@ Thumbs.db
 *.log
 *.tmp
 *.temp
+
+# Local OpenAI Sites publisher, staged source, archives, and deployment state
+/.openai-publish/
+/Publish-OpenAI
