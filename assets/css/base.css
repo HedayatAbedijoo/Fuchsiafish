@@ -46,7 +46,7 @@ button[hidden] { display: none; }
 .novel-link span:last-child { margin-left: 8px; color: var(--pink); }
 .novel-link:hover { border-color: var(--pink); background: #ff65bf0b; }
 .site-footer { display: flex; justify-content: space-between; align-items: center; gap: 30px; border-top: 1px solid var(--line); padding-block: 22px; color: #a496b1; font: 10px/1.8 var(--mono); }
-.site-footer p { margin: 0; }
+.site-footer p { margin: 0; text-align: left; text-wrap: pretty; }
 .site-footer > a { white-space: nowrap; font-size: 9px; letter-spacing: .09em; color: #ddc8df; }
 .site-footer > a:hover { color: var(--pink); }
 

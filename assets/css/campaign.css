@@ -17,7 +17,9 @@ h1 > span { display: block; }
 .title-fish > span, .title-coming > span { white-space: nowrap; }
 .headline-glyph { display: inline-block; transform-origin: 50% 100%; }
 .hero-details { grid-area: 2 / 1; align-self: start; padding-top: 25px; }
-.lede { margin: 0; max-width: 450px; color: #c7b8d1; font-size: clamp(15px, 1.2vw, 18px); line-height: 1.75; }
+.lede { margin: 0; max-width: 450px; color: #c7b8d1; font-size: clamp(15px, 1.2vw, 18px); line-height: 1.75; text-align: left; }
+/* Keep sentences separate; balance any wrapping within each sentence. */
+.lede-sentence { display: block; text-wrap: balance; }
 .lede strong { color: #f7eaf8; font-weight: 650; }
 .warning-partner { display: flex; align-items: center; gap: 22px; width: fit-content; max-width: 100%; margin: 23px 0 25px; }
 .warning-copy { min-width: 0; }
@@ -26,7 +28,8 @@ h1 > span { display: block; }
 .discover-link { display: inline-flex; align-items: center; justify-content: space-between; gap: 30px; padding: 16px 20px; background: #ff75c6; color: #27091e; border: 1px solid #ffb6e3; border-radius: 9px; font-size: 10px; font-weight: 850; letter-spacing: .055em; box-shadow: 0 9px 32px #ec3e9b1c; transition: background .2s, transform .2s; }
 .discover-link span { font-size: 16px; line-height: 1; }
 .discover-link:hover { background: #ff9ed7; transform: translateY(-2px); }
-.story-note { max-width: 360px; margin: 20px 0 0; color: #a89ab3; font: 12px/1.9 var(--mono); }
+.story-note { max-width: 360px; margin: 20px 0 0; color: #a89ab3; font: 12px/1.9 var(--mono); text-align: left; text-wrap: pretty; }
+.story-ending { white-space: nowrap; }
 .studio-arrow { color: inherit; font-weight: 700; text-decoration: none; }
 .studio-arrow:hover, .studio-arrow:focus-visible { color: var(--pink); }
 .visual { grid-area: 1 / 2 / span 2; align-self: center; min-width: 0; width: 100%; height: clamp(570px, 46vw, 720px); margin: 0; position: relative; z-index: 2; }
@@ -66,7 +69,6 @@ h1 > span { display: block; }
   .visual::before { inset: 10% 0 0; }
   .hero-details { grid-area: 2 / 1; text-align: center; padding-top: 3px; }
   .lede { margin-inline: auto; max-width: 430px; font-size: 16px; line-height: 1.7; }
-  .desktop-break { display: none; }
   .warning-partner { margin: 21px auto 23px; gap: 24px; text-align: left; }
   .warning { border-left: 0; padding: 0; font-size: 13px; }
   .story-note { max-width: 360px; margin: 18px auto 0; font-size: 12px; }
