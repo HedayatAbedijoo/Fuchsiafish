@@ -19,7 +19,7 @@
       'assets/images/phone-photos/hafezieh-selfie.webp'
     ],
     profilePhotoSrcs: [
-      'assets/images/instagram/paris.webp',
+      'assets/images/instagram/cologne.webp',
       'assets/images/instagram/friends.webp',
       'assets/images/instagram/food.webp',
       'assets/images/instagram/travel.webp',
