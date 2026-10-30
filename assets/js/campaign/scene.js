@@ -1,6 +1,6 @@
 /* Original character artwork, with a continuous swim path and flexible sprite rig. */
 'use strict';
-window.FuchsiafishScene = { mount({ canvas, stage = canvas, heading = null, sideSrc, frontSrc, turnSrc = null, turnFrames = null, turnAtlas = null, photoSrcs = [], profilePhotoSrcs = [], onReady = () => {}, onError = () => {}, onPlaybackChange = () => {} }) {
+window.FuchsiafishScene = { mount({ canvas, stage = canvas, heading = null, dumbphone = null, sideSrc, frontSrc, turnSrc = null, turnFrames = null, turnAtlas = null, photoSrcs = [], profilePhotoSrcs = [], onReady = () => {}, onError = () => {}, onPlaybackChange = () => {} }) {
 const mainCtx=canvas.getContext('2d',{alpha:true});
 if (!mainCtx) { onError(); return null; }
 let ctx=mainCtx;
@@ -16,6 +16,9 @@ const TAU=Math.PI*2, BITE=.225, TURN=.4, CONTACT=paperBites.CONTACT, TEAR=paperB
 const FEED=1.2, END=FEED+BITES*BITE+(ITEMS-1)*TURN, DEAD=END+.45, EXIT=DEAD+.75, RETURN=EXIT+3.6;
 const HEADLINE=RETURN, HEADLINE_TURN=TURN, REPAIR_START=FEED+.15, REPAIR_END=FEED+3.4;
 let HEADLINE_END=HEADLINE,CYCLE=RETURN;
+const DUMBPHONE_ATTEMPTS=3,DUMBPHONE_ATTEMPT=.9;
+let DUMBPHONE=null,DUMBPHONE_END=null,GIVE_UP_END=null,dumbphoneTarget=null;
+const dumbphoneTransform=dumbphone?.style.transform||'';
 const clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n)),lerp=(a,b,t)=>a+(b-a)*t,rand=n=>{const q=Math.sin(n*127.1+311.7)*43758.5453;return q-Math.floor(q)};
 const smooth=t=>{t=clamp(t);return t*t*t*(10+t*(-15+6*t))};
 const motionQuery=matchMedia('(prefers-reduced-motion: reduce)');
@@ -189,8 +192,14 @@ function resize(){
  // Extend only the drawing surface over the existing heading. The phone and
  // the entire first visit retain their original stage, scale and coordinates.
  const extra=headline?Math.max(0,b.left):0;
+ // The keypad phone stays in its existing layout. Extend the transparent
+ // canvas down to it, retaining the original stage coordinates and scale.
+ if(dumbphone)dumbphone.style.transform=dumbphoneTransform;
+ const phoneBounds=dumbphone?.getBoundingClientRect();
+ const extraBottom=phoneBounds?Math.max(0,phoneBounds.bottom+90-(b.top+b.height)):0;
  if(headline)canvas.style.width=`${b.width+extra}px`;
- canvas.width=Math.round((b.width+extra)*dpr);canvas.height=Math.round(b.height*dpr);
+ if(dumbphone)canvas.style.height=`${b.height+extraBottom}px`;
+ canvas.width=Math.round((b.width+extra)*dpr);canvas.height=Math.round((b.height+extraBottom)*dpr);
  viewScale=Math.min(b.width/W,b.height/H);
  viewX=extra+(b.width-W*viewScale)/(compact?1:2);viewY=(b.height-H*viewScale)/2;
  P.x=compact?435:535;P.y=compact?110:86;S.x=P.x+18;S.y=P.y+23;
@@ -202,9 +211,18 @@ function resize(){
   HEADLINE_END=HEADLINE+headlineCards.length*3*BITE+(headlineCards.length-1)*HEADLINE_TURN;
   CYCLE=HEADLINE_END+1.4;
  }
+ dumbphoneTarget=null;DUMBPHONE=DUMBPHONE_END=GIVE_UP_END=null;
+ if(phoneBounds?.width&&phoneBounds.height&&headlineCards.length){
+  dumbphoneTarget={x:(phoneBounds.left-b.left+extra-viewX+phoneBounds.width*.08)/viewScale,
+   y:(phoneBounds.top-b.top-viewY+phoneBounds.height*.48)/viewScale};
+  DUMBPHONE=HEADLINE_END+1.2;
+  DUMBPHONE_END=DUMBPHONE+DUMBPHONE_ATTEMPTS*DUMBPHONE_ATTEMPT;
+  GIVE_UP_END=DUMBPHONE_END+.45;
+  CYCLE=GIVE_UP_END+1.4;
+ }
  buildSwimPath();
  buildPhoneMesh();
- if(loaded){cycleNo=Math.floor(elapsed/CYCLE)+1;render(elapsed%CYCLE)}
+ if(loaded)renderElapsed();
 }
 function fishPose(x,y,s=.25,dir=1,angle=0){return{x,y,s,dir,angle}}
 function startPose(){return fishPose(W===780?248:291,W===780?390:408,.29,1,-.12)}
@@ -234,6 +252,25 @@ function headlineFeeding(t){
   p.angle+=target.card.dir*.018*tug;
  }
  return {p,q,target,turning,paper:turning?null:paperBites.sample({card:target.card,piece,q,grip:mouth(p,jawClosure(q))})};
+}
+function dumbphonePose(){
+ const p=fishPose(0,0,.29,1,0),offset=mouth(p,.08);
+ return {...p,x:dumbphoneTarget.x-offset.x-22,y:dumbphoneTarget.y-offset.y};
+}
+function dumbphoneFeeding(t){
+ const attempt=Math.min(DUMBPHONE_ATTEMPTS-1,Math.floor((t-DUMBPHONE)/DUMBPHONE_ATTEMPT));
+ const q=clamp((t-DUMBPHONE-attempt*DUMBPHONE_ATTEMPT)/DUMBPHONE_ATTEMPT);
+ // Close on the casing, try chewing, then recoil without tearing anything off.
+ let closed;
+ if(q<.32)closed=lerp(.08,1,smooth((q-.16)/.16));
+ else if(q<.52)closed=1;
+ else if(q<.8)closed=1-.32*Math.sin((q-.52)/.28*TAU)**2;
+ else closed=lerp(1,.08,smooth((q-.8)/.2));
+ const p=swimPose(t),open=mouth({...p,x:0,y:0},.08),grip=mouth({...p,x:0,y:0},closed);
+ const lunge=smooth(q/.32)*(1-smooth((q-.8)/.2));
+ const recoil=18*(smooth((q-.45)/.22)-smooth((q-.8)/.2));
+ p.x+=22*lunge-recoil+open.x-grip.x;p.y+=open.y-grip.y;
+ return {p,q,attempt,closed,contact:mouth(p,closed)};
 }
 function buildSwimPath(){
  const start=startPose(),cx=P.x+P.w/2,cy=P.y+P.h/2;
@@ -309,7 +346,26 @@ function buildSwimPath(){
    }
   }
   const final=headlinePose(headlineCards.length*3-1);
-  if(final.dir<0){
+  if(dumbphoneTarget){
+   const target=dumbphonePose();
+   add(HEADLINE_END+.3,fishPose(final.x-20,lerp(final.y,target.y,.2),.29,0,.04),.7,-1);
+   add(DUMBPHONE,target,.65);
+   for(let attempt=0;attempt<DUMBPHONE_ATTEMPTS;attempt++){
+    add(DUMBPHONE+(attempt+.5)*DUMBPHONE_ATTEMPT,target,.55);
+    add(DUMBPHONE+(attempt+1)*DUMBPHONE_ATTEMPT,target,.55);
+   }
+   // Back away in frustration, then face the route to the smartphone. On
+   // narrow screens that route goes up and left before turning into entry.
+   if(target.x>start.x){
+    add(GIVE_UP_END,{...target,x:target.x-35,y:target.y-12,dir:0,angle:-.12},.35,-1);
+    add(GIVE_UP_END+.5,fishPose(start.x+110,lerp(target.y,start.y,.65),.29,-1,-.12),.7);
+    add(GIVE_UP_END+.95,fishPose(start.x-40,start.y+28,.29,0,-.04),.7,-1);
+    add(GIVE_UP_END+1.2,fishPose(start.x-22,start.y+10,.29,1,-.12),.7);
+   }else{
+    add(GIVE_UP_END,{...target,x:target.x-35,y:target.y-12,angle:-.12},.35);
+    add(GIVE_UP_END+.55,fishPose(lerp(target.x,start.x,.38),lerp(target.y,start.y,.6)-35,.29,1,-.2),.7);
+   }
+  }else if(final.dir<0){
    add(HEADLINE_END+.3,fishPose(final.x-20,lerp(final.y,start.y,.2),.29,0,.04),.7,-1);
    add(HEADLINE_END+.6,fishPose(lerp(final.x,start.x,.25),lerp(final.y,start.y,.4),.29,1,-.08),.7);
   }
@@ -581,7 +637,7 @@ function render(t){
  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,canvas.width,canvas.height);
  ctx.setTransform(viewScale*dpr,0,0,viewScale*dpr,viewX*dpr,viewY*dpr);background(t);
  let f=null,inner=null,front=null,rear=null,insideAlpha=1,pct=100,fullness=1,bites=Array(ITEMS).fill(0),state='APPROACHING',phase='THE HUNT BEGINS',frontAlpha=1;
- let titleFeed=null,titleRepair=1,titleRow=-1,titlePiece=0,titleQ=0;
+ let titleFeed=null,failedBite=null,titleRepair=1,titleRow=-1,titlePiece=0,titleQ=0;
  let pose=swimPose(t);
  if(t<FEED){const u=t/FEED;front=pose;frontAlpha=1-smooth((u-.45)/.51);inner=localPose(pose);const pc=projectPhone(inner.x,inner.y),px=projectPhone(inner.x+10,inner.y),py=projectPhone(inner.x,inner.y+10);front.squeeze=lerp(1,Math.hypot(px.x-pc.x,px.y-pc.y)/Math.hypot(py.x-pc.x,py.y-pc.y),smooth(u/.45));insideAlpha=1-frontAlpha;state='BREACHING';phase='SLIPPING THROUGH THE GLASS';}
  else if(t<END){f=feedingPose(t-FEED);inner=f.p;const eaten=f.n+(f.q>=TEAR?1:0);pct=100-eaten/BITES*100;if(eaten===BITES&&f.q<SWALLOW)pct=1;for(let k=0;k<eaten;k++)bites[order[Math.floor(k/3)]]++;state='FEEDING';phase=f.turning?'HUNTING THE NEXT MORSEL':f.q<CONTACT?'TEETH SINK INTO '+(f.target.card.i<2?'A PHOTO':f.target.card.i===2?'A WHATSAPP CHAT':'AN INSTAGRAM PROFILE'):'TEAR. CHEW. SWALLOW.';}
@@ -589,6 +645,9 @@ function render(t){
  else if(t<EXIT){const u=smooth((t-DEAD)/(EXIT-DEAD));pct=0;bites.fill(3);inner=localPose(pose);insideAlpha=1-u;rear=pose;state='ESCAPING';phase='DISAPPEARING BEHIND THE PHONE';}
  else if(t<RETURN){const u=(t-EXIT)/(RETURN-EXIT),recharge=smooth((u-.72)/.28);pct=100*recharge;fullness=recharge;if(recharge===0)bites.fill(3);if(u<.68)rear=pose;else front=pose;state=recharge>0?'RESTORING':headline?'HUNTING_HEADLINE':'CIRCLING';phase='STILL HUNGRY.';}
  else if(t<HEADLINE_END){titleFeed=headlineFeeding(t);front=pose=titleFeed.p;state='EATING_HEADLINE';phase='TEAR. CHEW. SWALLOW THE WORDS.';}
+ else if(dumbphoneTarget&&t<DUMBPHONE){front=pose;state='HUNTING_DUMBPHONE';phase='TRY THE KEYPAD PHONE.';}
+ else if(dumbphoneTarget&&t<DUMBPHONE_END){failedBite=dumbphoneFeeding(t);front=pose=failedBite.p;state='ATTEMPTING_DUMBPHONE';phase='TOO TOUGH TO CHEW.';}
+ else if(dumbphoneTarget&&t<GIVE_UP_END){front=pose;state='GIVING_UP';phase='NOTHING TO EAT HERE.';}
  else{front=pose;state='RETURNING';phase='BACK THROUGH THE GLASS.';}
  if(headline){
   // Keep the phone empty until the fish is halfway through eating the title.
@@ -606,26 +665,40 @@ function render(t){
  drawPhone(t,pct,fullness,bites,f,inner,insideAlpha);
  const titlePaper=titleFeed?.paper;
  if(titlePaper?.active)paperBites.draw(ctx,titlePaper,false);
- if(front)fish(ctx,front,t,titleFeed?jawClosure(titleFeed.q):.08,titlePaper?.active?c=>paperBites.draw(c,titlePaper,false):null,frontAlpha);
+ if(front)fish(ctx,front,t,failedBite?failedBite.closed:titleFeed?jawClosure(titleFeed.q):.08,titlePaper?.active?c=>paperBites.draw(c,titlePaper,false):null,frontAlpha);
+ // A brief casing shudder follows each failed grip, then settles completely.
+ if(dumbphone){
+  const q=failedBite?.q??0,impact=smooth((q-.3)/.06)*(1-smooth((q-.64)/.16));
+  const shake=Math.sin(q*TAU*5)*impact;
+  dumbphone.style.transform=impact?`${dumbphoneTransform} translateX(${shake*1.3}px) rotate(${shake*.8}deg)`:dumbphoneTransform;
+ }
  const currentPaper=f?.paper||titlePaper;
- stateSnapshot={time:t,cycle:cycleNo,phase:state,battery:Math.round(pct),bites:bites.slice(),headline:headline?{row:titleRow,piece:titlePiece,q:titleQ,repair:titleRepair,rows:headlineCards.length}:null,jaw:f?jawClosure(f.q):titleFeed?jawClosure(titleFeed.q):.08,paper:currentPaper?{phase:currentPaper.phase,attached:currentPaper.attached,visible:currentPaper.active,grip:currentPaper.grip}:null,layer:rear?'behind':inner?'screen':'front',playing,facing:pose.dir,position:{x:pose.x,y:pose.y},scale:pose.s,bank:pose.angle,turning:!!(f?.turning||titleFeed?.turning),hasFrontView:frontReady,turnFrameCount:turnSequence?.frameCount||0,turnFrame:turnSequence?turnSequence.frameForFacing(pose.dir):null,perspectiveRenderer:projector?.ready?'webgl':'canvas'};
+ stateSnapshot={time:t,cycle:cycleNo,phase:state,battery:Math.round(pct),bites:bites.slice(),headline:headline?{row:titleRow,piece:titlePiece,q:titleQ,repair:titleRepair,rows:headlineCards.length}:null,dumbphone:failedBite?{attempt:failedBite.attempt+1,attempts:DUMBPHONE_ATTEMPTS,q:failedBite.q,intact:true,contact:failedBite.contact}:null,jaw:f?jawClosure(f.q):failedBite?failedBite.closed:titleFeed?jawClosure(titleFeed.q):.08,paper:currentPaper?{phase:currentPaper.phase,attached:currentPaper.attached,visible:currentPaper.active,grip:currentPaper.grip}:null,layer:rear?'behind':inner?'screen':'front',playing,facing:pose.dir,position:{x:pose.x,y:pose.y},scale:pose.s,bank:pose.angle,turning:!!(f?.turning||titleFeed?.turning),hasFrontView:frontReady,turnFrameCount:turnSequence?.frameCount||0,turnFrame:turnSequence?turnSequence.frameForFacing(pose.dir):null,perspectiveRenderer:projector?.ready?'webgl':'canvas'};
 }
 function canAnimate(){return loaded&&playing&&inView&&!document.hidden&&!destroyed}
+function renderElapsed(){
+ let lap=Math.floor(elapsed/CYCLE),time=elapsed-lap*CYCLE;
+ // Multiplying a fractional cycle duration can land just below the next lap.
+ // Treat that floating-point residue as the same entry frame when seeking.
+ if(CYCLE-time<1e-9){lap++;time=0}
+ cycleNo=lap+1;render(time);
+}
 function schedule(){if(canAnimate()&&!frameId)frameId=requestAnimationFrame(tick)}
 function tick(now){
  frameId=0;if(!canAnimate()){last=0;return}
  const dt=last?Math.min((now-last)/1000,.05):0;last=now;elapsed+=dt;
- cycleNo=Math.floor(elapsed/CYCLE)+1;render(elapsed%CYCLE);schedule();
+ renderElapsed();schedule();
 }
 function setPlaying(value){
  playing=value;last=0;if(!playing&&frameId){cancelAnimationFrame(frameId);frameId=0}
- if(loaded)render(elapsed%CYCLE);onPlaybackChange(playing);schedule();
+ if(loaded)renderElapsed();onPlaybackChange(playing);schedule();
 }
 function visibility(){last=0;if(document.hidden&&frameId){cancelAnimationFrame(frameId);frameId=0}else schedule()}
 function motionChange(){setPlaying(!motionQuery.matches)}
 document.addEventListener('visibilitychange',visibility);
 motionQuery.addEventListener('change',motionChange);
 const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(stage);if(heading)resizeObserver.observe(heading);
+if(dumbphone)resizeObserver.observe(dumbphone);
 const intersectionObserver=new IntersectionObserver(entries=>{
  inView=entries[0].isIntersecting;last=0;
  if(!inView&&frameId){cancelAnimationFrame(frameId);frameId=0}else schedule();
@@ -658,9 +731,9 @@ profilePhotoImages.forEach((photo,i)=>{
 image.src=sideSrc;frontImage.src=frontSrc;if(turnSrc)turnImage.src=turnSrc;
 return {
  get state(){return stateSnapshot},
- get timings(){return {FEED,END,DEAD,EXIT,RETURN,CYCLE,ITEMS,BITES,BITE,TURN,CARD,CONTACT,TEAR,SWALLOW,HEADLINE,HEADLINE_END,HEADLINE_TURN,REPAIR_START,REPAIR_END}},
+ get timings(){return {FEED,END,DEAD,EXIT,RETURN,CYCLE,ITEMS,BITES,BITE,TURN,CARD,CONTACT,TEAR,SWALLOW,HEADLINE,HEADLINE_END,HEADLINE_TURN,REPAIR_START,REPAIR_END,DUMBPHONE,DUMBPHONE_END,DUMBPHONE_ATTEMPT,DUMBPHONE_ATTEMPTS,GIVE_UP_END}},
  pause(){setPlaying(false)},resume(){setPlaying(true)},toggle(){setPlaying(!playing)},
- seek(seconds){setPlaying(false);elapsed=Math.max(0,seconds);cycleNo=Math.floor(elapsed/CYCLE)+1;if(loaded)render(elapsed%CYCLE);return stateSnapshot},
- destroy(){destroyed=true;cancelAnimationFrame(frameId);resizeObserver.disconnect();intersectionObserver.disconnect();document.removeEventListener('visibilitychange',visibility);motionQuery.removeEventListener('change',motionChange);headline?.destroy();if(headline)canvas.style.width='';projector?.gl.getExtension('WEBGL_lose_context')?.loseContext()}
+ seek(seconds){setPlaying(false);elapsed=Math.max(0,seconds);if(loaded)renderElapsed();return stateSnapshot},
+ destroy(){destroyed=true;cancelAnimationFrame(frameId);resizeObserver.disconnect();intersectionObserver.disconnect();document.removeEventListener('visibilitychange',visibility);motionQuery.removeEventListener('change',motionChange);headline?.destroy();if(headline)canvas.style.width='';if(dumbphone){canvas.style.height='';dumbphone.style.transform=dumbphoneTransform}projector?.gl.getExtension('WEBGL_lose_context')?.loseContext()}
 };
 }};

@@ -3,14 +3,14 @@ const vm = require('vm');
 const assert = require('assert/strict');
 let source = fs.readFileSync(process.cwd() + '/assets/js/campaign/scene.js', 'utf8');
 
-function mount(compact = false, frontMissing = false, record = false, withHeadline = false) {
+function mount(compact = false, frontMissing = false, record = false, withHeadline = false, withDumbphone = false) {
   let frames = 0, serial = 0, operations = [], canvasCount = 0, resizeCallback;
   const contexts = [], images = [];
   const append = (...args) => { if (record) operations.push(args); };
   const encode = x => x && typeof x === 'object' && x.id ? { ref: x.id } : x;
   function canvas() {
     const id = `canvas${canvasCount++}`;
-    const target = { id, style: {}, width: 300, height: 150, addEventListener() {}, removeEventListener() {}, getBoundingClientRect() { return {left:0,top:0,width: compact ? 390 : 960, height: compact ? 490 : 800}; } };
+    const target = { id, style: {}, width: 300, height: 150, addEventListener() {}, removeEventListener() {}, getBoundingClientRect() { return {left:compact?16:720,top:0,width: compact ? 390 : 960, height: compact ? 490 : 800}; } };
     append('canvas', id, 300, 150);
     let depth = 0;
     const state = {};
@@ -62,10 +62,14 @@ function mount(compact = false, frontMissing = false, record = false, withHeadli
   vm.runInNewContext(fs.readFileSync('assets/js/campaign/paper-bite.js','utf8'),sandbox);
   vm.runInNewContext(source, sandbox);
   const surface = canvas();
+  const dumbphone=withDumbphone?{style:{transform:''},getBoundingClientRect(){return compact
+    ?{left:251,top:600,width:64,height:123,bottom:723}
+    :{left:440,top:730,width:68,height:131,bottom:861}}}:null;
   const scene = sandbox.window.FuchsiafishScene.mount({canvas: surface,
     heading:withHeadline?{closest(){return {getBoundingClientRect(){return {left:compact?0:-720}}}}}:null,
+    dumbphone,
     sideSrc: process.cwd() + '/assets/images/fuchsiafish-side.png', frontSrc: process.cwd() + '/assets/images/fuchsiafish-front.png',turnSrc:process.cwd()+'/assets/images/fuchsiafish-turn-smooth.webp',turnAtlas:sandbox.window.FuchsiafishTurnAtlas});
-  return {scene, contexts, operations, surface, sandbox, resize(value){compact=value;resizeCallback()},get headlineState(){return headlineState},get headlineDestroyed(){return headlineDestroyed}};
+  return {scene, contexts, operations, surface, sandbox, dumbphone, resize(value){compact=value;resizeCallback()},get headlineState(){return headlineState},get headlineDestroyed(){return headlineDestroyed}};
 }
 
 
@@ -337,3 +341,64 @@ for(const compact of [true,false,true]){
 }
 responsive.scene.destroy();
 console.log('PASS responsive reflow keeps the shared bite rhythm and updates loop/last-bite timing');
+
+
+// The real keypad phone is a separate, indestructible target after the words.
+// Exercise all three failed grips, seeking, responsive placement and loop joins.
+for(const compact of [false,true])for(const frontMissing of [false,true]){
+ const mounted=mount(compact,frontMissing,false,true,true);
+ const {scene,dumbphone,surface,contexts}=mounted,t=scene.timings;
+ assert.equal(t.DUMBPHONE_ATTEMPTS,3);
+ assert(Math.abs(t.DUMBPHONE-t.HEADLINE_END-1.2)<1e-9,'Approach the keypad phone after the final word');
+ assert(Math.abs(t.DUMBPHONE_END-t.DUMBPHONE-3*t.DUMBPHONE_ATTEMPT)<1e-9);
+ assert(surface.height>(compact?490:800),'Extend the canvas to the phone below the stage');
+ const bounds=dumbphone.getBoundingClientRect(),scale=compact?.5:1,viewY=compact?40:0;
+ const target={x:(bounds.left-(compact?16:720)+bounds.width*.08)/scale,y:(bounds.top+bounds.height*.48-viewY)/scale};
+ const phases=new Set();
+ for(const cycle of [0,1,2]){
+  const start=cycle*t.CYCLE;
+  assert.equal(scene.seek(start+t.HEADLINE_END+.1).phase,'HUNTING_DUMBPHONE');
+  for(let attempt=0;attempt<3;attempt++){
+   const at=start+t.DUMBPHONE+attempt*t.DUMBPHONE_ATTEMPT;
+   const before=scene.seek(at+.05*t.DUMBPHONE_ATTEMPT),held=scene.seek(at+.38*t.DUMBPHONE_ATTEMPT);
+   assert.equal(held.phase,'ATTEMPTING_DUMBPHONE');assert.equal(held.dumbphone.attempt,attempt+1);
+   assert.equal(held.dumbphone.intact,true);assert.equal(held.jaw,1);assert(before.jaw<.1);
+   assert(Math.abs(held.dumbphone.contact.x-target.x)<2,'The actual jaw must meet the phone casing');
+   assert(Math.abs(held.dumbphone.contact.y-target.y)<5,'Follow the measured DOM phone, including its vertical offset');
+   assert.equal(held.paper,null,'No scraps or swallowing from the indestructible phone');
+   assert.equal(held.battery,100);assert.equal(held.bites.join(','),'0,0,0,0');
+   assert.equal(held.headline.repair,0,'Leave the eaten words absent during failed attempts');
+   const again=scene.seek(at+.38*t.DUMBPHONE_ATTEMPT);
+   sameFrame(held.position,again.position,'Seeking must reproduce the failed bite');
+   const recoiled=scene.seek(at+.72*t.DUMBPHONE_ATTEMPT);
+   assert(recoiled.dumbphone.contact.x<held.dumbphone.contact.x-10,'Recoil after failing to chew');
+  }
+  assert.equal(scene.seek(start+t.DUMBPHONE_END+.1).phase,'GIVING_UP');
+  assert.equal(scene.seek(start+t.GIVE_UP_END+.1).phase,'RETURNING');
+  assert.equal(dumbphone.style.transform,'','Settle the casing after the last failed grip');
+  const epsilon=1e-5,entry=scene.seek(start+t.CYCLE),end=scene.seek(start+t.CYCLE-epsilon);
+  const next=scene.seek(start+t.CYCLE+epsilon),previous=scene.seek(start+t.CYCLE-2*epsilon);
+  assert.equal(entry.phase,'BREACHING');assert.equal(entry.headline.repair,0);
+  for(const axis of ['x','y']){
+   assert(Math.abs(entry.position[axis]-end.position[axis])<.01,'Join the next loop without a position jump');
+   const incoming=(end.position[axis]-previous.position[axis])/epsilon,outgoing=(next.position[axis]-entry.position[axis])/epsilon;
+   assert(Math.abs(incoming-outgoing)<1,'Keep speed continuous across the loop boundary');
+  }
+  assert(scene.seek(start+t.CYCLE+t.REPAIR_END).headline.repair>.99,'Repair the words during the next smartphone visit');
+ }
+ for(let at=t.HEADLINE_END;at<t.CYCLE-1e-6;at+=1/120){
+  const frame=scene.seek(at);phases.add(frame.phase);
+  assert.equal(frame.paper,null);assert(Math.abs(frame.scale-.29)<1e-12,'No zoom during the extra stage');
+  assert.equal(frame.battery,100);assert.equal(frame.layer,'front');
+ }
+ assert.deepEqual([...phases],['HUNTING_DUMBPHONE','ATTEMPTING_DUMBPHONE','GIVING_UP','RETURNING']);
+ // A resize while gripping must measure the unshaken phone and rebuild timings.
+ scene.seek(t.DUMBPHONE+.4*t.DUMBPHONE_ATTEMPT);
+ mounted.resize(!compact);
+ const resized=scene.timings;
+ assert(Math.abs(resized.CYCLE-(!compact?20.625:18.475))<1e-9);
+ assert.equal(scene.seek(resized.DUMBPHONE+.4*resized.DUMBPHONE_ATTEMPT).dumbphone.attempt,1);
+ assert(contexts.every(c=>c.depth===0));
+ scene.destroy();assert.equal(dumbphone.style.transform,'');assert.equal(surface.style.height,'');
+ console.log(`PASS ${compact?'compact':'desktop'}, front fallback ${frontMissing}: three failed keypad bites, measured casing contact, no damage, give-up and seamless repeated loops`);
+}
