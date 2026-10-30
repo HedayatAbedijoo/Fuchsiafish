@@ -621,10 +621,8 @@ function setPlaying(value){
  playing=value;last=0;if(!playing&&frameId){cancelAnimationFrame(frameId);frameId=0}
  if(loaded)render(elapsed%CYCLE);onPlaybackChange(playing);schedule();
 }
-function keydown(event){if(event.code==='Space'){event.preventDefault();setPlaying(!playing)}}
 function visibility(){last=0;if(document.hidden&&frameId){cancelAnimationFrame(frameId);frameId=0}else schedule()}
 function motionChange(){setPlaying(!motionQuery.matches)}
-canvas.addEventListener('keydown',keydown);
 document.addEventListener('visibilitychange',visibility);
 motionQuery.addEventListener('change',motionChange);
 const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(stage);if(heading)resizeObserver.observe(heading);
@@ -663,6 +661,6 @@ return {
  get timings(){return {FEED,END,DEAD,EXIT,RETURN,CYCLE,ITEMS,BITES,BITE,TURN,CARD,CONTACT,TEAR,SWALLOW,HEADLINE,HEADLINE_END,HEADLINE_TURN,REPAIR_START,REPAIR_END}},
  pause(){setPlaying(false)},resume(){setPlaying(true)},toggle(){setPlaying(!playing)},
  seek(seconds){setPlaying(false);elapsed=Math.max(0,seconds);cycleNo=Math.floor(elapsed/CYCLE)+1;if(loaded)render(elapsed%CYCLE);return stateSnapshot},
- destroy(){destroyed=true;cancelAnimationFrame(frameId);resizeObserver.disconnect();intersectionObserver.disconnect();canvas.removeEventListener('keydown',keydown);document.removeEventListener('visibilitychange',visibility);motionQuery.removeEventListener('change',motionChange);headline?.destroy();if(headline)canvas.style.width='';projector?.gl.getExtension('WEBGL_lose_context')?.loseContext()}
+ destroy(){destroyed=true;cancelAnimationFrame(frameId);resizeObserver.disconnect();intersectionObserver.disconnect();document.removeEventListener('visibilitychange',visibility);motionQuery.removeEventListener('change',motionChange);headline?.destroy();if(headline)canvas.style.width='';projector?.gl.getExtension('WEBGL_lose_context')?.loseContext()}
 };
 }};

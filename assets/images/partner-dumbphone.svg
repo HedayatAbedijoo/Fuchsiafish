@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="76" height="146" viewBox="0 0 76 146" fill="none">
+  <defs>
+    <rect id="key" width="16" height="9" rx="3" fill="#49404f" stroke="#6f5f75" stroke-width=".6"/>
+  </defs>
+  <rect x="4" y="2" width="68" height="142" rx="14" fill="#302736" stroke="#827087"/>
+  <rect x="7" y="5" width="62" height="136" rx="11" stroke="#d6bdd5" stroke-opacity=".12"/>
+  <rect x="28" y="12" width="20" height="3" rx="1.5" fill="#110e17"/>
+  <path d="M31 13.5h14" stroke="#73637a" stroke-width=".6" stroke-dasharray="1 2"/>
+  <rect x="12" y="22" width="52" height="51" rx="4" fill="#15121b" stroke="#66576c"/>
+  <rect x="15" y="25" width="46" height="45" rx="2" fill="#c7d0bc"/>
+  <g fill="#374735">
+    <path d="M19 32h1v-2h-1zm3 0h1v-4h-1zm3 0h1v-6h-1z" opacity=".7"/>
+    <rect x="52" y="28" width="5" height="3" rx=".5" fill="none" stroke="#374735" stroke-width=".7"/>
+    <path d="M57 29h1v1h-1z"/>
+    <text x="38" y="44" text-anchor="middle" font-family="monospace" font-size="10" font-weight="700">YOUR</text>
+    <text x="38" y="55" text-anchor="middle" font-family="monospace" font-size="10" font-weight="700">BRAND</text>
+    <path d="M22 59h32" stroke="#374735" stroke-opacity=".25" stroke-width=".5"/>
+    <text x="38" y="65" text-anchor="middle" font-family="sans-serif" font-size="5" letter-spacing=".6">PARTNER</text>
+  </g>
+  <rect x="27" y="78" width="22" height="20" rx="6" fill="#201a27" stroke="#99809e" stroke-width=".8"/>
+  <rect x="32" y="82" width="12" height="12" rx="3" fill="#4c3e53" stroke="#76607c" stroke-width=".6"/>
+  <path d="M15 82h6m34 0h6" stroke="#b8a6bf" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M15 93q3-3 6 0" stroke="#a4bda4" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M55 92q3-3 6 0" stroke="#d48cae" stroke-width="1.4" stroke-linecap="round"/>
+  <g>
+    <use href="#key" x="11" y="102"/><use href="#key" x="30" y="102"/><use href="#key" x="49" y="102"/>
+    <use href="#key" x="11" y="112"/><use href="#key" x="30" y="112"/><use href="#key" x="49" y="112"/>
+    <use href="#key" x="11" y="122"/><use href="#key" x="30" y="122"/><use href="#key" x="49" y="122"/>
+    <use href="#key" x="11" y="132"/><use href="#key" x="30" y="132"/><use href="#key" x="49" y="132"/>
+  </g>
+  <g fill="#e6dbe9" font-family="sans-serif" font-size="6" text-anchor="middle">
+    <text x="19" y="109">1</text><text x="38" y="109">2</text><text x="57" y="109">3</text>
+    <text x="19" y="119">4</text><text x="38" y="119">5</text><text x="57" y="119">6</text>
+    <text x="19" y="129">7</text><text x="38" y="129">8</text><text x="57" y="129">9</text>
+    <text x="19" y="139">*</text><text x="38" y="139">0</text><text x="57" y="139">#</text>
+  </g>
+</svg>

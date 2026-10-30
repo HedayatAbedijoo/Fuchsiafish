@@ -14,7 +14,7 @@ Then open `http://127.0.0.1:8080/main.html`.
 main.html                     Campaign entry and semantic content
 assets/css/base.css           Shared theme, header, footer, accessibility
 assets/css/campaign.css       Campaign composition and responsive layout
-assets/js/main.js             Page initialization and playback control
+assets/js/main.js             Page initialization and loading state
 assets/js/campaign/scene.js   Isolated Canvas/WebGL animation and lifecycle
 assets/js/campaign/turn-sequence.js  Continuous sampling of the prepared yaw poses
 assets/js/campaign/turn-atlas.js     Shared frame dimensions, scale and pivot
@@ -48,7 +48,7 @@ At widths up to 850px, the headline sits behind the animated scene. The phone is
 
 The phone's cards remain absent after the escape and through the first half of the headline hunt. They fade back in over 0.6 seconds starting halfway through eating the measured headline rows, independently of the existing battery restoration. The same delay applies in both layouts and subsequent loops.
 
-The pause control and Space key on the canvas control playback. Reduced-motion preferences start the scene paused. Rendering stops when the page is hidden or the scene is off-screen. If WebGL is unavailable, the scene uses its Canvas fallback; if the frontal asset is unavailable, the side view remains usable.
+The scene plays automatically without a pause button or keyboard playback controls. Reduced-motion preferences start the scene paused. Rendering stops when the page is hidden or the scene is off-screen. If WebGL is unavailable, the scene uses its Canvas fallback; if the frontal asset is unavailable, the side view remains usable.
 
 `window.fuchsiafish` provides `pause()`, `resume()`, `toggle()`, `seek(seconds)`, `state`, `timings`, and `destroy()`. The scene is separate from the page so future routes can mount and unmount it. A future forum can use separate feature scripts/styles and its own server/API; no forum, accounts, storage, or backend is implemented here.
 

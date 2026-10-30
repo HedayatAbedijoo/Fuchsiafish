@@ -19,7 +19,10 @@ h1 > span { display: block; }
 .hero-details { grid-area: 2 / 1; align-self: start; padding-top: 25px; }
 .lede { margin: 0; max-width: 450px; color: #c7b8d1; font-size: clamp(15px, 1.2vw, 18px); line-height: 1.75; }
 .lede strong { color: #f7eaf8; font-weight: 650; }
-.warning { border-left: 2px solid var(--pink); padding: 3px 0 3px 15px; margin: 24px 0 28px; color: #f5b3db; font: 650 clamp(11px, 1vw, 14px)/1.8 var(--mono); letter-spacing: .07em; }
+.warning-partner { display: flex; align-items: center; gap: 22px; width: fit-content; max-width: 100%; margin: 23px 0 25px; }
+.warning-copy { min-width: 0; }
+.warning { border-left: 2px solid var(--pink); padding: 3px 0 3px 15px; margin: 0; color: #f5b3db; font: 650 clamp(12px, calc(1vw + 1px), 15px)/1.8 var(--mono); letter-spacing: .07em; }
+.partner-phone { display: block; flex: 0 0 auto; width: 68px; height: auto; filter: drop-shadow(0 6px 10px #0005); }
 .discover-link { display: inline-flex; align-items: center; justify-content: space-between; gap: 30px; padding: 16px 20px; background: #ff75c6; color: #27091e; border: 1px solid #ffb6e3; border-radius: 9px; font-size: 10px; font-weight: 850; letter-spacing: .055em; box-shadow: 0 9px 32px #ec3e9b1c; transition: background .2s, transform .2s; }
 .discover-link span { font-size: 16px; line-height: 1; }
 .discover-link:hover { background: #ff9ed7; transform: translateY(-2px); }
@@ -33,12 +36,6 @@ h1 > span { display: block; }
 .is-ready .scene { opacity: 1; }
 .scene-poster { position: absolute; inset: 0; margin: auto; width: 90%; height: 75%; object-fit: contain; pointer-events: none; }
 .is-ready .scene-poster { display: none; }
-.playback-control { position: absolute; right: 7%; bottom: 5%; display: grid; place-items: center; width: 44px; height: 44px; padding: 12px; background: #170d20a1; border: 1px solid #b579a42e; border-radius: 50%; color: #d8aacd; transition: color .2s, border-color .2s; }
-.playback-control:hover { color: #fff0fb; border-color: var(--pink); }
-.playback-control svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.playback-control .play-icon { display: none; }
-.playback-control.is-paused .pause-icon { display: none; }
-.playback-control.is-paused .play-icon { display: block; }
 
 @media (min-width: 1700px) {
   .hero { column-gap: 28px; }
@@ -64,14 +61,15 @@ h1 > span { display: block; }
   .title-fish > span, .title-coming > span { display: block; }
   .title-fish { color: #f56db9; text-shadow: 0 0 40px #ed339c18; }
   .title-coming { margin-top: 9px; font-size: .90em; color: #efe3f2; }
-  .visual { grid-area: 1 / 1; align-self: center; height: clamp(350px, calc(100svh - 215px), 650px); padding: 0; }
+  /* Keep the full 780 × 820 scene, without unused vertical space on narrow screens. */
+  .visual { grid-area: 1 / 1; align-self: center; height: auto; aspect-ratio: 780 / 820; max-height: clamp(350px, calc(100svh - 215px), 650px); padding: 0; }
   .visual::before { inset: 10% 0 0; }
   .hero-details { grid-area: 2 / 1; text-align: center; padding-top: 3px; }
   .lede { margin-inline: auto; max-width: 430px; font-size: 16px; line-height: 1.7; }
   .desktop-break { display: none; }
-  .warning { border-left: 0; padding: 0; margin: 21px 0 23px; font-size: 12px; }
+  .warning-partner { margin: 21px auto 23px; gap: 24px; text-align: left; }
+  .warning { border-left: 0; padding: 0; font-size: 13px; }
   .story-note { max-width: 360px; margin: 18px auto 0; font-size: 12px; }
-  .playback-control { right: 0; bottom: 0; }
 }
 @media (max-width: 520px) {
   .hero-heading { padding-top: 12px; }
@@ -79,10 +77,12 @@ h1 > span { display: block; }
   .eyebrow::before { width: 12px; }
   h1 { font-size: clamp(36px, 11.5vw, 60px); }
   .title-the { margin-bottom: 10px; }
-  .visual { height: clamp(340px, calc(100svh - 215px), 490px); }
+  .visual { max-height: clamp(340px, calc(100svh - 215px), 490px); }
   .hero-details { padding-top: 6px; }
   .lede { max-width: 340px; font-size: 14px; line-height: 1.8; }
-  .warning { font-size: 11px; margin: 18px 0 22px; }
+  .warning-partner { margin-block: 18px 22px; gap: 16px; }
+  .warning { font-size: 12px; }
+  .partner-phone { width: 64px; }
   .discover-link { padding: 15px 20px; }
   .story-note { max-width: 310px; font-size: 11px; }
 }
@@ -91,7 +91,7 @@ h1 > span { display: block; }
   .lede { font-size: 13px; }
 }
 @media (max-width: 850px) and (max-height: 500px) and (orientation: landscape) {
-  .visual { height: max(220px, calc(100svh - 72px)); }
+  .visual { height: max(220px, calc(100svh - 72px)); max-height: none; aspect-ratio: auto; }
   .hero-heading { padding-top: 20px; }
   .eyebrow { top: 10px; font-size: 6px; }
   h1 { font-size: clamp(28px, 9svh, 42px); }
